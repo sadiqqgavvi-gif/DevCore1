@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  color: #e7e8ed;
+  background: #08090d;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  --bg: #08090d;
+  --panel: #0c0d12;
+  --text: #e7e8ed;
+  --muted: #898b96;
+  --faint: #555862;
+  --line: rgba(207, 211, 232, 0.12);
+  --line-soft: rgba(207, 211, 232, 0.07);
+  --accent: #9cafff;
+  --accent-strong: #a78bfa;
+  --mono: 'DM Mono', 'Courier New', monospace;
+  --display: 'Manrope', 'DM Sans', sans-serif;
+  scroll-behavior: smooth;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { background: var(--bg); scroll-padding-top: 88px; }
+
+body { margin: 0; }
+
+body, button, input, textarea { font-family: 'DM Sans', 'Segoe UI', sans-serif; }
+
+button, a, input, textarea { -webkit-tap-highlight-color: transparent; }
+
+a { color: inherit; text-decoration: none; }
+
+button { color: inherit; }
+
+::selection { color: #0a0b10; background: #a9b8ff; }
+
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

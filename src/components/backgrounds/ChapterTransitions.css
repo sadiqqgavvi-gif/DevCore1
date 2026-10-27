@@ -1,0 +1,76 @@
+.chapter-transition {
+  position: fixed;
+  z-index: 12;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 82px 22px 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  perspective: 1000px;
+}
+
+.chapter-transition::before {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: radial-gradient(ellipse at center, rgba(5, 7, 13, .52), rgba(5, 7, 13, .24) 31%, transparent 66%);
+  content: '';
+  opacity: var(--chapter-shade, 0);
+}
+
+.chapter-transition__frame {
+  position: relative;
+  z-index: 1;
+  width: min(660px, 76vw);
+  display: grid;
+  grid-template-columns: auto minmax(32px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 17px 20px;
+  border-top: 1px solid rgba(187, 204, 255, .26);
+  border-bottom: 1px solid rgba(187, 204, 255, .17);
+  background: linear-gradient(90deg, rgba(8, 10, 18, .16), rgba(8, 10, 18, .72) 18%, rgba(8, 10, 18, .72) 82%, rgba(8, 10, 18, .16));
+  box-shadow: 0 18px 70px rgba(0, 0, 0, .13);
+  transform-style: preserve-3d;
+}
+
+.chapter-transition__index,
+.chapter-transition__signal {
+  color: #a9bbe8;
+  font: 8px var(--mono);
+  letter-spacing: .14em;
+}
+
+.chapter-transition__rule {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(166, 189, 255, .45), rgba(166, 189, 255, .05));
+}
+
+.chapter-transition__title {
+  grid-column: 1 / -1;
+  color: #edf0fb;
+  font: 500 clamp(31px, 5.2vw, 68px)/.95 var(--display);
+  letter-spacing: -.075em;
+  text-align: center;
+}
+
+.chapter-transition__signal {
+  grid-column: 1 / -1;
+  color: #828ba6;
+  font-size: 6px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .chapter-transition { padding-top: 70px; }
+  .chapter-transition::before { background: radial-gradient(ellipse at center, rgba(5, 7, 13, .4), rgba(5, 7, 13, .2) 28%, transparent 58%); }
+  .chapter-transition__frame { width: min(520px, 90vw); gap: 11px; padding: 13px 15px; }
+  .chapter-transition__title { font-size: clamp(29px, 8vw, 42px); }
+  .chapter-transition__signal { font-size: 5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-transition { display: none; }
+}

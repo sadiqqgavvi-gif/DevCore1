@@ -1,0 +1,6 @@
+.hero-experience .story-panel { will-change: transform, opacity; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-experience .story-panel,
+  .hero-experience .hero-story-ui { display: none; }
+}

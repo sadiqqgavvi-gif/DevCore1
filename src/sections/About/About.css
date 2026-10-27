@@ -1,0 +1,5 @@
+.intro .section-kicker { position: relative; }
+
+@media (max-width: 760px) {
+  .intro .intro-grid { margin-top: 47px; }
+}

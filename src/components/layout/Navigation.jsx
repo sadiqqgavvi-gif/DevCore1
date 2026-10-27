@@ -1,10 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowUpRight, Menu, X } from 'lucide-react'
 import { navigation } from '../../data/navigation.data.js'
 
 export default function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
+
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    const handleKey = (event) => { if (event.key === 'Escape') setMenuOpen(false) }
+    const handleResize = () => { if (window.innerWidth > 1000) setMenuOpen(false) }
+    window.addEventListener('keydown', handleKey)
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('keydown', handleKey)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [menuOpen])
 
   return (
     <header className="site-header">

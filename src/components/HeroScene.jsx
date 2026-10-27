@@ -63,7 +63,7 @@ function createOrbitGeometry(offset = 0) {
   return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 120, 0.008, 5, false)
 }
 
-function createEnvironmentGeometry() {
+function createEnvironmentGeometry(count = 280) {
   const positions = []
   const colors = []
   const color = new THREE.Color()
@@ -74,7 +74,7 @@ function createEnvironmentGeometry() {
     return (seed - 1) / 2147483646
   }
 
-  for (let index = 0; index < 280; index += 1) {
+  for (let index = 0; index < count; index += 1) {
     const x = (random() - 0.5) * 15
     const y = (random() - 0.5) * 9
     const z = -random() * 9 - 1
@@ -98,8 +98,9 @@ function createSpatialGridGeometry() {
   return geometry
 }
 
-function ExperienceWorld({ motionState, reducedMotion }) {
+function ExperienceWorld({ motionState, reducedMotion, compact }) {
   const world = useRef(null)
+  const anchor = useRef(null)
   const sculpture = useRef(null)
   const orbitGroup = useRef(null)
   const architecture = useRef(null)
@@ -112,7 +113,7 @@ function ExperienceWorld({ motionState, reducedMotion }) {
   const coreGeometry = useMemo(() => createCoreGeometry(), [])
   const orbitGeometryOne = useMemo(() => createOrbitGeometry(0.3), [])
   const orbitGeometryTwo = useMemo(() => createOrbitGeometry(2.2), [])
-  const environmentGeometry = useMemo(() => createEnvironmentGeometry(), [])
+  const environmentGeometry = useMemo(() => createEnvironmentGeometry(compact ? 140 : 280), [compact])
   const spatialGridGeometry = useMemo(() => createSpatialGridGeometry(), [])
   const chapterColors = useMemo(() => [
     new THREE.Color('#111a50'),
@@ -132,6 +133,14 @@ function ExperienceWorld({ motionState, reducedMotion }) {
   useFrame((state, delta) => {
     elapsed.current += delta
     const time = elapsed.current
+    if (anchor.current) {
+      const aspect = state.size.width / Math.max(1, state.size.height)
+      const portrait = THREE.MathUtils.clamp((1.1 - aspect) / 0.65, 0, 1)
+      const target = anchor.current
+      target.position.x = THREE.MathUtils.damp(target.position.x, THREE.MathUtils.lerp(1.3, 0.22, portrait), 4, delta)
+      target.position.y = THREE.MathUtils.damp(target.position.y, THREE.MathUtils.lerp(0, -0.82, portrait), 4, delta)
+      target.scale.setScalar(THREE.MathUtils.damp(target.scale.x, THREE.MathUtils.lerp(1, 0.6, portrait), 4, delta))
+    }
     const progress = motionState.current.progress
     const pageProgress = reducedMotion ? 0 : motionState.current.pageProgress
     const chapter = reducedMotion ? 0 : motionState.current.chapter
@@ -141,18 +150,15 @@ function ExperienceWorld({ motionState, reducedMotion }) {
     const mix = currentChapter.current - lowChapter
     chapterTarget.current.copy(chapterColors[lowChapter]).lerp(chapterColors[highChapter], mix)
 
-    if (world.current) {
-      world.current.traverse((object) => {
-        if (object.isMesh && object.material && object.material.color && object.userData.chapterColor) {
-          object.material.color.lerp(chapterTarget.current, 1 - Math.exp(-delta * 1.5))
-        }
-      })
+    if (architecture.current) {
+      const blend = 1 - Math.exp(-delta * 1.5)
+      architecture.current.children.forEach((child) => child.material.color.lerp(chapterTarget.current, blend))
     }
 
     if (sculpture.current) {
       const targetScale = 1 + Math.max(0, progress - 0.28) * 0.48 - Math.max(0, progress - 0.82) * 0.12
       sculpture.current.scale.setScalar(THREE.MathUtils.damp(sculpture.current.scale.x, targetScale, 3, delta))
-      sculpture.current.position.x = 1.3 + Math.sin(pageProgress * Math.PI * 2) * 0.12
+      sculpture.current.position.x = Math.sin(pageProgress * Math.PI * 2) * 0.12
       sculpture.current.position.z = Math.sin(pageProgress * Math.PI * 4) * 0.08
       if (!reducedMotion) {
         sculpture.current.rotation.y = progress * Math.PI * 1.12 + pageProgress * 0.22 + time * 0.055
@@ -178,7 +184,7 @@ function ExperienceWorld({ motionState, reducedMotion }) {
     if (orbitGroup.current && !reducedMotion) {
       orbitGroup.current.rotation.y = time * 0.035 + progress * 0.55 + pageProgress * 0.72 + state.pointer.x * 0.06
       orbitGroup.current.rotation.x = Math.cos(time * 0.08) * 0.05 + state.pointer.y * 0.045 + Math.sin(pageProgress * Math.PI * 2) * 0.045
-      orbitGroup.current.position.x = 1.3 + Math.sin(pageProgress * Math.PI * 2 + 0.6) * 0.16
+      orbitGroup.current.position.x = Math.sin(pageProgress * Math.PI * 2 + 0.6) * 0.16
       orbitGroup.current.position.z = Math.cos(pageProgress * Math.PI * 2) * 0.1
     }
 
@@ -188,7 +194,7 @@ function ExperienceWorld({ motionState, reducedMotion }) {
       architecture.current.scale.setScalar(0.82 + detail * 0.3 + Math.sin(pageProgress * Math.PI * 2) * 0.025)
       architecture.current.rotation.y = -progress * 0.25 + pageProgress * 0.2
       architecture.current.rotation.x = Math.sin(pageProgress * Math.PI * 2) * 0.04
-      architecture.current.position.x = 1.3 + Math.cos(pageProgress * Math.PI * 2) * 0.12
+      architecture.current.position.x = Math.cos(pageProgress * Math.PI * 2) * 0.12
       architecture.current.children.forEach((child, index) => {
         child.material.opacity = (0.1 + detail * 0.28) * chapterFocus
         child.material.transparent = true
@@ -244,7 +250,8 @@ function ExperienceWorld({ motionState, reducedMotion }) {
         </lineSegments>
       </group>
 
-      <group ref={sculpture} position={[1.3, 0, 0]} rotation={[0.16, -0.3, 0.04]}>
+      <group ref={anchor} position={[1.3, 0, 0]}>
+      <group ref={sculpture} position={[0, 0, 0]} rotation={[0.16, -0.3, 0.04]}>
         <mesh geometry={coreGeometry}>
           <meshPhysicalMaterial
             vertexColors
@@ -282,7 +289,7 @@ function ExperienceWorld({ motionState, reducedMotion }) {
         </mesh>
       </group>
 
-      <group ref={orbitGroup} position={[1.3, 0, 0]}>
+      <group ref={orbitGroup} position={[0, 0, 0]}>
         <mesh geometry={orbitGeometryOne} rotation={[0.34, 0.1, 0.36]}>
           <meshStandardMaterial color="#a6baff" emissive="#455bff" emissiveIntensity={0.45} metalness={0.8} roughness={0.24} />
         </mesh>
@@ -295,7 +302,7 @@ function ExperienceWorld({ motionState, reducedMotion }) {
         </mesh>
       </group>
 
-      <group ref={architecture} position={[1.3, 0, -0.15]}>
+      <group ref={architecture} position={[0, 0, -0.15]}>
         <mesh position={[-0.8, 0.15, -0.5]} userData={{ chapterColor: true }}>
           <boxGeometry args={[1.2, 0.72, 0.015]} />
           <meshBasicMaterial color="#568cff" wireframe transparent opacity={0.2} />
@@ -313,6 +320,7 @@ function ExperienceWorld({ motionState, reducedMotion }) {
           <meshBasicMaterial color="#aa7aff" wireframe transparent opacity={0.16} />
         </mesh>
       </group>
+      </group>
     </group>
   )
 }
@@ -326,11 +334,19 @@ function ExperienceScene({ motionState }) {
     () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   )
 
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 760px), (max-height: 500px)').matches)
+
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const size = window.matchMedia('(max-width: 760px), (max-height: 500px)')
     const updatePreference = () => setReducedMotion(preference.matches)
+    const updateSize = () => setCompact(size.matches)
     preference.addEventListener('change', updatePreference)
-    return () => preference.removeEventListener('change', updatePreference)
+    size.addEventListener('change', updateSize)
+    return () => {
+      preference.removeEventListener('change', updatePreference)
+      size.removeEventListener('change', updateSize)
+    }
   }, [])
 
   if (!webglAvailable) return <SceneFallback />
@@ -340,11 +356,11 @@ function ExperienceScene({ motionState }) {
       <Canvas
         className="environment-canvas"
         camera={{ position: [0, 0, 5.2], fov: 36 }}
-        dpr={[0.65, 1.15]}
+        dpr={compact ? [0.6, 1] : [0.65, 1.15]}
         frameloop={reducedMotion ? 'demand' : 'always'}
         gl={{ alpha: true, antialias: false, powerPreference: 'low-power' }}
       >
-        <ExperienceWorld motionState={motionState} reducedMotion={reducedMotion} />
+        <ExperienceWorld motionState={motionState} reducedMotion={reducedMotion} compact={compact} />
       </Canvas>
     </SceneBoundary>
   )

@@ -66,17 +66,19 @@ function edges(geometry) {
   return result
 }
 
-function useResources(mobile) {
+function useResources(mobile, spread) {
   const resources = useMemo(() => {
     const random = seeded(11)
     const glow = makeGlowTexture()
     const paper = makePaperTexture()
 
-    // 04 — paper sheets and ink motes.
+    // 04 — paper sheets and ink motes. They sit either side of the centre line; on a portrait
+    // screen the camera sees a much narrower slice, so the spread is pulled in to match
+    // (spread is exactly 1 on landscape and desktop screens).
     const sheets = Array.from({ length: mobile ? 9 : 16 }, (_, index) => {
       const side = index % 2 ? 1 : -1
       return {
-        position: new THREE.Vector3(side * (3.5 + random() * 7), (random() - 0.5) * 9, -14 + random() * 20),
+        position: new THREE.Vector3(side * (3.5 + random() * 7) * spread, (random() - 0.5) * 9, -14 + random() * 20),
         rotation: new THREE.Euler((random() - 0.5) * 0.9, (random() - 0.5) * 1.4, (random() - 0.5) * 0.6),
         speed: 0.2 + random() * 0.4,
         phase: random() * Math.PI * 2,
@@ -86,7 +88,7 @@ function useResources(mobile) {
     const inkCount = mobile ? 260 : 700
     const ink = new Float32Array(inkCount * 3)
     for (let i = 0; i < inkCount; i += 1) {
-      ink[i * 3] = (random() - 0.5) * 30
+      ink[i * 3] = (random() - 0.5) * 30 * spread
       ink[i * 3 + 1] = (random() - 0.5) * 16
       ink[i * 3 + 2] = -16 + random() * 26
     }
@@ -139,7 +141,7 @@ function useResources(mobile) {
       glow, paper, sheets, inkGeometry, forms, formPlaces, nodes, linkGeometry, linkCount: links.length,
       orbits, stagePoints, tube, stageRing, panel, sheetGeometry, nodeGeometry,
     }
-  }, [mobile])
+  }, [mobile, spread])
 
   useEffect(() => () => {
     const r = resources
@@ -328,7 +330,10 @@ function CameraRig({ stateRef }) {
 
 export default function AmbientWorld({ active, stateRef, onReady }) {
   const mobile = window.innerWidth < 760
-  const r = useResources(mobile)
+  // Horizontal spread of the Gazette sheets relative to the landscape layout (see useResources).
+  const aspect = window.innerWidth / window.innerHeight
+  const spread = aspect < 1 ? Math.max(0.4, Math.round(aspect * 1.1 * 100) / 100) : 1
+  const r = useResources(mobile, spread)
   return (
     <Canvas
       frameloop={active ? 'always' : 'never'}

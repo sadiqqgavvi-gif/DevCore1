@@ -1,0 +1,203 @@
+/* Animated shader hero. Everything is scoped under .ash so nothing leaks into the page.
+   Palette and sizing follow the 21st.dev original (Tailwind orange / yellow / amber values). */
+
+.ash {
+  --ash-orange-100: #ffedd5;
+  --ash-orange-300: #fdba74;
+  --ash-orange-400: #fb923c;
+  --ash-orange-500: #f97316;
+  --ash-orange-600: #ea580c;
+  --ash-yellow-300: #fde047;
+  --ash-yellow-400: #facc15;
+  --ash-yellow-500: #eab308;
+  --ash-yellow-600: #ca8a04;
+  --ash-amber-300: #fcd34d;
+  --ash-red-400: #f87171;
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  background: #000;
+  color: #fff;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Shader surface: edge to edge, behind the copy. Touch keeps scrolling the page. */
+.ash__stage { position: absolute; inset: 0; z-index: 0; background: #000; }
+.ash__canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: pan-y; }
+.ash__fallback {
+  position: absolute;
+  inset: 0;
+  display: none;
+  background:
+    radial-gradient(ellipse 38% 30% at 50% 52%, rgba(251, 146, 60, 0.28), transparent 70%),
+    radial-gradient(ellipse 60% 45% at 30% 70%, rgba(234, 88, 12, 0.22), transparent 70%),
+    radial-gradient(ellipse 55% 40% at 72% 34%, rgba(250, 204, 21, 0.14), transparent 70%),
+    #000;
+}
+.ash[data-shader='fallback'] .ash__fallback { display: block; }
+
+/* A soft dark pool behind the copy keeps it readable over the brightest light. */
+.ash__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: radial-gradient(ellipse 58% 46% at 50% 50%, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.18) 60%, transparent 85%);
+  pointer-events: none;
+}
+
+.ash__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: 120px 24px 96px;
+  text-align: center;
+}
+
+.ash__eyebrow {
+  margin: 0 0 18px;
+  font-family: var(--pixel, ui-monospace, monospace);
+  font-size: 17px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(253, 186, 116, 0.85);
+}
+
+/* Trust badge */
+.ash__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 32px;
+  padding: 12px 24px;
+  border: 1px solid rgba(253, 186, 116, 0.3);
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.1);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash-orange-100);
+}
+.ash__badge-icon { display: inline-flex; color: var(--ash-yellow-300); }
+
+/* Two-line gradient headline; the gradient drifts slowly across each line. */
+.ash__title { display: grid; gap: 8px; margin: 0 0 28px; font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; }
+.ash__line {
+  display: block;
+  padding-bottom: 0.06em;
+  font-size: clamp(48px, 7.2vw, 96px);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ash__line--1 { background-image: linear-gradient(90deg, var(--ash-orange-300), var(--ash-yellow-400), var(--ash-amber-300), var(--ash-orange-300)); }
+.ash__line--2 { background-image: linear-gradient(90deg, var(--ash-yellow-300), var(--ash-orange-400), var(--ash-red-400), var(--ash-yellow-300)); }
+.ash.is-in .ash__line { animation-name: ash-fade-in-up, ash-gradient-drift; animation-duration: 0.8s, 9s; animation-timing-function: ease-out, linear; animation-iteration-count: 1, infinite; animation-fill-mode: forwards, none; }
+.ash.is-in .ash__line--1 { animation-delay: 0.2s, 0s; }
+.ash.is-in .ash__line--2 { animation-delay: 0.4s, 0s; }
+
+.ash__subtitle {
+  max-width: 768px;
+  margin: 0 0 40px;
+  font-size: clamp(18px, 1.9vw, 24px);
+  font-weight: 300;
+  line-height: 1.625;
+  color: rgba(255, 237, 213, 0.9);
+}
+
+/* Buttons */
+.ash__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+.ash__button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 16px 32px;
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+}
+.ash__button--primary {
+  overflow: hidden;
+  isolation: isolate;
+  background: linear-gradient(90deg, var(--ash-orange-500), var(--ash-yellow-500));
+  color: #000;
+}
+/* The darker hover gradient fades in on its own layer (gradients cannot transition directly). */
+.ash__button--primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, var(--ash-orange-600), var(--ash-yellow-600));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.ash__button--primary:hover { transform: scale(1.05); box-shadow: 0 20px 25px -5px rgba(249, 115, 22, 0.25), 0 8px 10px -6px rgba(249, 115, 22, 0.25); }
+.ash__button--primary:hover::before { opacity: 1; }
+.ash__button--secondary {
+  border: 1px solid rgba(253, 186, 116, 0.3);
+  background: rgba(249, 115, 22, 0.1);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  color: var(--ash-orange-100);
+}
+.ash__button--secondary:hover { transform: scale(1.05); border-color: rgba(253, 186, 116, 0.5); background: rgba(249, 115, 22, 0.2); }
+.ash__button:focus-visible { outline: 2px solid var(--ash-yellow-300); outline-offset: 4px; }
+
+/* Staggered entrance (fade-in-down for the badge, fade-in-up for the rest), started by .is-in. */
+.ash-fade-down, .ash-fade-up { opacity: 0; }
+.ash.is-in .ash-fade-down { animation: ash-fade-in-down 0.8s ease-out forwards; }
+.ash.is-in .ash-fade-up:not(.ash__line) { animation: ash-fade-in-up 0.8s ease-out forwards; }
+/* As specific as the shorthand above (which resets the delay), and later, so they win. */
+.ash.is-in .ash-fade-up.ash-delay-200:not(.ash__line) { animation-delay: 0.2s; }
+.ash.is-in .ash-fade-up.ash-delay-400:not(.ash__line) { animation-delay: 0.4s; }
+.ash.is-in .ash-fade-up.ash-delay-600:not(.ash__line) { animation-delay: 0.6s; }
+.ash.is-in .ash-fade-up.ash-delay-800:not(.ash__line) { animation-delay: 0.8s; }
+
+@keyframes ash-fade-in-down { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ash-fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ash-gradient-drift { to { background-position: 200% 0; } }
+
+@media (max-width: 640px) {
+  .ash__content { padding: 104px 20px 80px; }
+  .ash__badge { margin-bottom: 24px; padding: 10px 18px; font-size: 12px; }
+  .ash__title { margin-bottom: 20px; }
+  .ash__subtitle { margin-bottom: 32px; }
+  .ash__actions { flex-direction: column; align-items: stretch; width: min(100%, 340px); }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .ash__content { padding: 76px 24px 48px; }
+  .ash__eyebrow { margin-bottom: 10px; }
+  .ash__badge { margin-bottom: 14px; padding: 8px 16px; }
+  .ash__line { font-size: clamp(34px, 11vh, 60px); }
+  .ash__title { margin-bottom: 12px; }
+  .ash__subtitle { margin-bottom: 18px; font-size: 16px; }
+  .ash__button { min-height: 46px; padding: 12px 24px; font-size: 16px; }
+}
+
+/* Reduced motion: everything visible at once, no drift, no scaling. JS marks the hero
+   .is-static from the same preference and never adds .is-in, so no entrance runs. */
+.ash.is-static .ash-fade-down, .ash.is-static .ash-fade-up { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .ash-fade-down, .ash-fade-up { opacity: 1; }
+  .ash.is-in .ash-fade-down, .ash.is-in .ash-fade-up, .ash.is-in .ash__line { animation: none; opacity: 1; }
+  .ash__button, .ash__button--primary::before { transition: none; }
+  .ash__button:hover { transform: none; }
+}

@@ -116,7 +116,7 @@ export default function RetroApp() {
         <Lab />
         <Ecosystem reducedMotion={reducedMotion} />
         <ProcessTimeline />
-        <Quality reducedMotion={reducedMotion} />
+        <Quality />
         <Assembler reducedMotion={reducedMotion} />
         <Convinced reducedMotion={reducedMotion} />
         <SkylineReel reducedMotion={reducedMotion} />

@@ -1,5 +1,6 @@
-import { Fragment, lazy, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, ArrowUpRight, X } from 'lucide-react'
+import { lazy, useEffect, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, ArrowUpRight, ShieldCheck, X } from 'lucide-react'
+import AnimatedShaderHero from '../components/ui/AnimatedShaderHero.jsx'
 import { gsap, ScrollTrigger, useGSAP } from '../lib/gsap.js'
 import {
   capabilities, caseFiles, EMAIL, labLayers, processStages, projects, qualityPrinciples, techGroups, tools,
@@ -820,218 +821,38 @@ export function ProcessTimeline() {
 
 /* ---------- G. Quality & reliability ---------- */
 
-// Copy that belongs to The Fine Print itself (kept word for word from the original chart).
-const FINE_PRINT_INTRO = 'Six commitments we hold ourselves to on every project. They are working principles, not certifications.'
+// The six commitments stay on the page, one click away, with the original footnote.
 const FINE_PRINT_FOOTNOTE = '* Principles describe how we work. They are not claims of formal certification or regulatory compliance.'
-const TYPING_MS = 520
 
-// Six-segment calibration ring: each commitment lights its segment once it has been inspected.
-function VerificationRing({ inspected }) {
-  const segments = qualityPrinciples.map((_, index) => {
-    const from = (index * 60 - 90 + 3) * (Math.PI / 180)
-    const to = ((index + 1) * 60 - 90 - 3) * (Math.PI / 180)
-    const r = 92
-    return `M ${(100 + r * Math.cos(from)).toFixed(2)} ${(100 + r * Math.sin(from)).toFixed(2)} A ${r} ${r} 0 0 1 ${(100 + r * Math.cos(to)).toFixed(2)} ${(100 + r * Math.sin(to)).toFixed(2)}`
-  })
+export function Quality() {
   return (
-    <div className="fp-ring" aria-hidden="true">
-      <svg viewBox="0 0 200 200">
-        {Array.from({ length: 60 }, (_, index) => {
-          const a = (index / 60) * Math.PI * 2
-          const inner = index % 5 === 0 ? 72 : 76
-          return <line key={index} className="fp-ring__tick" x1={100 + Math.cos(a) * inner} y1={100 + Math.sin(a) * inner} x2={100 + Math.cos(a) * 80} y2={100 + Math.sin(a) * 80} />
-        })}
-        <circle className="fp-ring__track" cx="100" cy="100" r="92" />
-        {segments.map((d, index) => <path key={index} className={`fp-ring__seg ${inspected.has(index) ? 'is-on' : ''}`} d={d} />)}
-        <circle className="fp-ring__core" cx="100" cy="100" r="52" />
-      </svg>
-      <div className="fp-ring__label"><strong>{inspected.size}/{qualityPrinciples.length}</strong><span>INSPECTED</span></div>
-    </div>
-  )
-}
-
-export function Quality({ reducedMotion }) {
-  const sectionRef = useRef(null)
-  const panelRef = useRef(null)
-  const logRef = useRef(null)
-  // The conversation is just the list of commitments the visitor has asked about, in order.
-  const [asked, setAsked] = useState([])
-  const [typing, setTyping] = useState(false)
-  const inspected = new Set(asked)
-  const complete = inspected.size === qualityPrinciples.length
-
-  useGSAP(() => {
-    if (reducedMotion) return
-    const section = sectionRef.current
-    // Entrance: the heading first, then the calibration ring, then the terminal rises into place.
-    gsap.timeline({ scrollTrigger: { trigger: section, start: 'top 75%', once: true } })
-      .fromTo('.fp-head > *', { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.08, duration: 0.6, ease: 'power3.out' })
-      .fromTo('.fp-ring', { scale: 0.85, rotate: -30, autoAlpha: 0 }, { scale: 1, rotate: 0, autoAlpha: 1, duration: 0.9, ease: 'power3.out' }, 0.15)
-      .fromTo('.fp-terminal', { y: 50, rotateX: 10, z: -80, autoAlpha: 0, transformPerspective: 1400, transformOrigin: '50% 0%' }, { y: 0, rotateX: 0, z: 0, autoAlpha: 1, duration: 0.9, ease: 'power3.out' }, 0.25)
-    // Hand-off: the stage recedes into the dark as the Assembler takes over.
-    gsap.fromTo('.fp-stage', { z: 0, rotateX: 0, autoAlpha: 1, transformPerspective: 1600, transformOrigin: '50% 100%' }, {
-      z: -160, rotateX: 8, autoAlpha: 0.3, ease: 'none',
-      scrollTrigger: { trigger: section, start: 'bottom 80%', end: 'bottom top', scrub: 0.8 },
-    })
-  }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
-
-  // Spotlight: a soft light follows the pointer across the terminal, eased so it never jitters.
-  // Scoped to the panel; skipped on touch screens and with reduced motion.
-  useEffect(() => {
-    const panel = panelRef.current
-    if (!panel || reducedMotion || !window.matchMedia('(pointer: fine)').matches) return undefined
-    const target = { x: 0.5, y: 0.2 }
-    const current = { ...target }
-    let frame = 0
-    const step = () => {
-      current.x += (target.x - current.x) * 0.12
-      current.y += (target.y - current.y) * 0.12
-      panel.style.setProperty('--spot-x', `${(current.x * 100).toFixed(2)}%`)
-      panel.style.setProperty('--spot-y', `${(current.y * 100).toFixed(2)}%`)
-      frame = Math.abs(target.x - current.x) + Math.abs(target.y - current.y) > 0.001 ? window.requestAnimationFrame(step) : 0
-    }
-    const move = (event) => {
-      const rect = panel.getBoundingClientRect()
-      target.x = (event.clientX - rect.left) / rect.width
-      target.y = (event.clientY - rect.top) / rect.height
-      panel.style.setProperty('--spot-o', '1')
-      if (!frame) frame = window.requestAnimationFrame(step)
-    }
-    const leave = () => panel.style.setProperty('--spot-o', '0')
-    panel.addEventListener('pointermove', move)
-    panel.addEventListener('pointerleave', leave)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      panel.removeEventListener('pointermove', move)
-      panel.removeEventListener('pointerleave', leave)
-    }
-  }, [reducedMotion])
-
-  // New messages scroll the log, never the page, and never move keyboard focus.
-  useEffect(() => {
-    const log = logRef.current
-    if (log) log.scrollTo({ top: log.scrollHeight, behavior: reducedMotion ? 'auto' : 'smooth' })
-  }, [asked, typing, reducedMotion])
-
-  // The typing indicator re-arms whenever it is shown, so it can never be left stuck on.
-  useEffect(() => {
-    if (!typing) return undefined
-    const timer = window.setTimeout(() => setTyping(false), TYPING_MS)
-    return () => window.clearTimeout(timer)
-  }, [typing, asked.length])
-
-  const ask = (index) => {
-    if (typing) return
-    setAsked((list) => [...list, index])
-    if (!reducedMotion) setTyping(true)
-  }
-  const nextIndex = qualityPrinciples.findIndex((_, index) => !inspected.has(index))
-  const back = () => {
-    if (asked.length === 0) return
-    setTyping(false)
-    setAsked((list) => list.slice(0, -1))
-  }
-  const reset = () => {
-    setTyping(false)
-    setAsked([])
-  }
-
-  return (
-    <section className="quality zone" id="quality" ref={sectionRef} aria-labelledby="quality-title">
-      <div className="zone__fallback zone__fallback--rings" aria-hidden="true" />
-      <div className="fp-stage">
-        <div className="fp-side">
-          <header className="fp-head">
-            <p className="kicker">Chapter 09 — Quality &amp; reliability</p>
-            <h2 id="quality-title" className="glow">The Fine Print</h2>
-            <p className="fp-head__intro">{FINE_PRINT_INTRO}</p>
-            <p className="fp-status" aria-hidden="true"><i /> QA TERMINAL · READY</p>
-          </header>
-          <VerificationRing inspected={inspected} />
-        </div>
-
-        <div className="fp-terminal" ref={panelRef} role="region" aria-label="The Fine Print terminal">
-          <span className="fp-terminal__spot" aria-hidden="true" />
-          <div className="fp-terminal__bar">
-            <LogoMark size={18} />
-            <span>DEVCORE · QA TERMINAL</span>
-            <span className="fp-terminal__state"><i aria-hidden="true" /> ready</span>
-          </div>
-          <div className="fp-progress" aria-hidden="true"><i style={{ transform: `scaleX(${inspected.size / qualityPrinciples.length})` }} /></div>
-          <ol className="fp-log" ref={logRef} role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation">
-            <li className="fp-msg fp-msg--devcore"><span className="fp-msg__who">DEVCORE</span><p>Before we build anything, here is the fine print.</p></li>
-            <li className="fp-msg fp-msg--devcore"><span className="fp-msg__who">DEVCORE</span><p>{FINE_PRINT_INTRO}</p><p className="fp-msg__hint">Pick one to inspect, or step through them in order.</p></li>
-            {asked.map((index, turn) => {
-              const item = qualityPrinciples[index]
-              const pending = typing && turn === asked.length - 1
-              return (
-                <Fragment key={turn}>
-                  <li className="fp-msg fp-msg--visitor"><span className="fp-msg__who">YOU</span><p>Tell me about {item.title.toLowerCase()}.</p></li>
-                  {pending ? (
-                    <li className="fp-msg fp-msg--devcore fp-msg--typing" aria-hidden="true"><span className="fp-msg__who">DEVCORE</span><span className="fp-dots"><i /><i /><i /></span></li>
-                  ) : (
-                    <li className="fp-msg fp-msg--devcore fp-msg--answer">
-                      <span className="fp-msg__who">DEVCORE · {String(index + 1).padStart(2, '0')}/{String(qualityPrinciples.length).padStart(2, '0')}</span>
-                      <h3>{item.title}</h3>
-                      <dl>
-                        <div><dt>What it means for you</dt><dd>{item.means}</dd></div>
-                        <div><dt>How we practise it</dt><dd>{item.practice}</dd></div>
-                      </dl>
-                      <span className="fp-msg__logged" aria-hidden="true">✓ Logged</span>
-                    </li>
-                  )}
-                </Fragment>
-              )
-            })}
-            {complete && !typing && (
-              <li className="fp-msg fp-msg--devcore fp-msg--close">
-                <span className="fp-msg__who">DEVCORE</span>
-                <p>That&rsquo;s all six. {FINE_PRINT_FOOTNOTE}</p>
-                <a className="button-cream" href="#contact">Start a project <ArrowRight size={15} /></a>
-              </li>
-            )}
-          </ol>
-          <div className="fp-input">
-            <div className="fp-chips" role="group" aria-label="Choose a commitment to inspect">
-              {qualityPrinciples.map((item, index) => (
-                <button key={item.title} type="button" className={`fp-chip ${inspected.has(index) ? 'is-done' : ''}`} onClick={() => ask(index)} aria-disabled={typing}
-                  aria-label={inspected.has(index) ? `${item.title} (inspected)` : item.title}>
-                  <span aria-hidden="true">{inspected.has(index) ? '✓' : String(index + 1).padStart(2, '0')}</span>{item.title}
-                </button>
-              ))}
-            </div>
-            {/* aria-disabled rather than disabled, and one primary button whose job changes,
-                so keyboard focus is never dropped while DevCore "types" or the flow completes. */}
-            <div className="fp-controls">
-              <button type="button" className="fp-ghost" onClick={back} aria-disabled={asked.length === 0}><ArrowLeft size={15} /> Back</button>
-              <button type="button" className={complete ? 'fp-ghost' : 'fp-send'} onClick={complete ? reset : () => ask(nextIndex)} aria-disabled={typing}>
-                {complete ? 'Start over' : <>{asked.length === 0 ? 'Step through' : 'Next'} <ArrowRight size={15} /></>}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <details className="fp-all">
-        <summary>View the complete checklist</summary>
-        <div className="spec-table" role="table" aria-label="Engineering principles">
-          <div className="spec-row spec-row--head" role="row">
-            <span role="columnheader">Principle</span>
-            <span role="columnheader">What it means for you</span>
-            <span role="columnheader">How we practise it</span>
-          </div>
+    <AnimatedShaderHero
+      id="quality"
+      className="quality-hero"
+      headingId="quality-title"
+      eyebrow="Chapter 09 — Quality & reliability"
+      trustBadge={{ text: 'Engineered with intent', icon: <ShieldCheck size={16} strokeWidth={2.2} /> }}
+      headline={{ line1: 'Quality Is', line2: 'Built In.' }}
+      subtitle="Reliable systems, deliberate engineering, and thoughtful validation — built to perform beyond the first release."
+      buttons={{
+        primary: { text: 'Start a Project', href: '#contact' },
+        secondary: { text: 'Our Approach', href: '#process' },
+      }}
+    >
+      <details className="fine-print ash-fade-up ash-delay-800">
+        <summary>Read the fine print <span aria-hidden="true">· six commitments</span></summary>
+        <ul className="fine-print__list">
           {qualityPrinciples.map((item) => (
-            <div className="spec-row" role="row" key={item.title}>
-              <strong role="cell">{item.title}</strong>
-              <span role="cell">{item.means}</span>
-              <span role="cell">{item.practice}</span>
-            </div>
+            <li key={item.title}>
+              <strong>{item.title}</strong>
+              <span>{item.means}</span>
+              <small>{item.practice}</small>
+            </li>
           ))}
-        </div>
-        <p className="fp-all__foot">{FINE_PRINT_FOOTNOTE}</p>
+        </ul>
+        <p className="fine-print__foot">{FINE_PRINT_FOOTNOTE}</p>
       </details>
-      <div className="zone__handoff zone__handoff--assembler" aria-hidden="true" />
-    </section>
+    </AnimatedShaderHero>
   )
 }
 

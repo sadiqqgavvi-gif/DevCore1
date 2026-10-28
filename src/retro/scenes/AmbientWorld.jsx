@@ -2,19 +2,17 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-// One shared world behind Chapters 04, 05, 07, 08 and 09. Each chapter's environment sits
+// One shared world behind Chapters 04, 05, 07 and 08 (Chapter 09 draws its own shader). Each chapter's environment sits
 // further down the z axis; the camera travels between them with scroll and fog hides the rest.
-const ANCHORS = [0, -70, -140, -210, -280]
+const ANCHORS = [0, -70, -140, -210]
 // Camera travel per chapter, as [start, end] offsets from its anchor. The camera stays outside
-// each chapter's objects so nothing balloons across the text; only Quality dives through its
-// rings, as the hand-off into the Assembler.
-const CAMERA_TRAVEL = [[18, -2], [18, 2], [26, 15], [20, 10], [18, -8]]
-const CAMERA_SWAY = [1.2, 1.2, 0.8, 0.8, 0.25]
+// each chapter's objects so nothing balloons across the text.
+const CAMERA_TRAVEL = [[18, -2], [18, 2], [26, 15], [20, 10]]
+const CAMERA_SWAY = [1.2, 1.2, 0.8, 0.8]
 const FOG = '#07060d'
 const AMBER = '#ffb36b'
 const CYAN = '#5fe3ff'
 const VIOLET = '#9b7cff'
-const GREEN = '#6dfcb0'
 
 const scratch = new THREE.Object3D()
 const lookTarget = new THREE.Vector3()
@@ -135,28 +133,18 @@ function useResources(mobile) {
     const stageRing = new THREE.TorusGeometry(0.42, 0.03, 8, 40)
     const panel = edges(new THREE.PlaneGeometry(1.6, 1))
 
-    // 09 — precision rings with tick marks, and layered grids.
-    const precision = [2.2, 3.2, 4.4, 5.8].map((radius) => new THREE.TorusGeometry(radius, 0.018, 6, 160))
-    const ticks = []
-    for (let i = 0; i < 120; i += 1) {
-      const a = (i / 120) * Math.PI * 2
-      const inner = i % 10 === 0 ? 6.0 : 6.25
-      ticks.push(new THREE.Vector3(Math.cos(a) * inner, Math.sin(a) * inner, 0), new THREE.Vector3(Math.cos(a) * 6.5, Math.sin(a) * 6.5, 0))
-    }
-    const tickGeometry = new THREE.BufferGeometry().setFromPoints(ticks)
-
     const sheetGeometry = new THREE.PlaneGeometry(1.6, 2.1)
     const nodeGeometry = new THREE.SphereGeometry(0.06, 10, 10)
     return {
       glow, paper, sheets, inkGeometry, forms, formPlaces, nodes, linkGeometry, linkCount: links.length,
-      orbits, stagePoints, tube, stageRing, panel, precision, tickGeometry, sheetGeometry, nodeGeometry,
+      orbits, stagePoints, tube, stageRing, panel, sheetGeometry, nodeGeometry,
     }
   }, [mobile])
 
   useEffect(() => () => {
     const r = resources
-    ;[r.glow, r.paper, r.inkGeometry, r.linkGeometry, r.tube, r.stageRing, r.panel, r.tickGeometry, r.sheetGeometry, r.nodeGeometry,
-      ...r.forms, ...r.orbits, ...r.precision].forEach((item) => item.dispose())
+    ;[r.glow, r.paper, r.inkGeometry, r.linkGeometry, r.tube, r.stageRing, r.panel, r.sheetGeometry, r.nodeGeometry,
+      ...r.forms, ...r.orbits].forEach((item) => item.dispose())
   }, [resources])
 
   return resources
@@ -194,10 +182,11 @@ function Gazette({ r, stateRef }) {
         <meshStandardMaterial map={r.paper} side={THREE.DoubleSide} roughness={0.95} />
       </instancedMesh>
       <points ref={ink} geometry={r.inkGeometry}>
-        <pointsMaterial color={AMBER} size={0.05} transparent opacity={0.55} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <pointsMaterial color={AMBER} size={0.065} transparent opacity={0.8} depthWrite={false} blending={THREE.AdditiveBlending} />
       </points>
-      <Glow texture={r.glow} position={[0, 0, -14]} color={AMBER} size={22} opacity={0.22} />
-      <pointLight position={[0, 2, 4]} color="#ffd2a1" intensity={30} distance={30} />
+      {/* Seen through the Gazette's glass sheet, so the light is a little stronger here. */}
+      <Glow texture={r.glow} position={[0, 0, -14]} color={AMBER} size={26} opacity={0.38} />
+      <pointLight position={[0, 2, 4]} color="#ffd2a1" intensity={42} distance={32} />
     </group>
   )
 }
@@ -306,36 +295,6 @@ function Process({ r, stateRef }) {
   )
 }
 
-function Quality({ r, stateRef }) {
-  const rings = useRef([])
-  const dial = useRef(null)
-  useFrame((state, delta) => {
-    const p = stateRef.current.progress[4]
-    rings.current.forEach((mesh, index) => {
-      if (!mesh) return
-      mesh.rotation.z += delta * (index % 2 ? -0.05 : 0.07) * (1 + index * 0.3)
-      mesh.rotation.x = 0.35 + index * 0.12 + p * 0.4
-    })
-    dial.current.rotation.z = -p * 0.8
-  })
-  return (
-    <group position={[0, 0, ANCHORS[4]]}>
-      {r.precision.map((geometry, index) => (
-        <mesh key={index} ref={(mesh) => { rings.current[index] = mesh }} geometry={geometry} position={[0, 0, -index * 1.5]}>
-          <meshBasicMaterial color={index % 2 ? CYAN : GREEN} transparent opacity={0.65} toneMapped={false} />
-        </mesh>
-      ))}
-      <lineSegments ref={dial} geometry={r.tickGeometry} position={[0, 0, -3]}>
-        <lineBasicMaterial color={GREEN} transparent opacity={0.45} toneMapped={false} />
-      </lineSegments>
-      {[-8, -14, -20].map((z, index) => (
-        <gridHelper key={z} args={[40, 20, index ? '#1d3b38' : '#2b6b5f', '#12262a']} position={[0, 0, z]} rotation={[Math.PI / 2, 0, 0]} material-transparent material-opacity={0.3} />
-      ))}
-      <Glow texture={r.glow} position={[0, 0, -2]} color={GREEN} size={8} opacity={0.3} />
-    </group>
-  )
-}
-
 function CameraRig({ stateRef }) {
   useFrame(({ camera, pointer }, delta) => {
     // The current chapter is the visible one closest to the middle of the screen.
@@ -386,7 +345,6 @@ export default function AmbientWorld({ active, stateRef, onReady }) {
       <Build r={r} stateRef={stateRef} />
       <Ecosystem r={r} stateRef={stateRef} />
       <Process r={r} stateRef={stateRef} />
-      <Quality r={r} stateRef={stateRef} />
       <CameraRig stateRef={stateRef} />
     </Canvas>
   )

@@ -93,7 +93,7 @@ function Modules({ progressRef, reducedMotion }) {
 
 export default function AssemblerScene({ active, progressRef, reducedMotion }) {
   return (
-    <Canvas frameloop={active ? 'always' : 'never'} dpr={[1, 1.5]} camera={{ position: [0, 0.4, 9], fov: 34 }} gl={{ antialias: true, alpha: true }}>
+    <Canvas frameloop={active ? 'always' : 'never'} dpr={[1, window.innerWidth < 760 ? 1.25 : 1.5]} camera={{ position: [0, 0.4, 9], fov: 34 }} gl={{ antialias: true, alpha: true }}>
       <hemisphereLight args={['#d9c8ff', '#120a10', 0.7]} />
       <directionalLight position={[4, 6, 5]} intensity={2.2} color="#fff0dc" />
       <directionalLight position={[-5, -2, -4]} intensity={1.4} color="#8f74ff" />

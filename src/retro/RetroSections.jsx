@@ -1,14 +1,17 @@
-import { lazy, useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, ArrowUpRight, Mail } from 'lucide-react'
 import { gsap, ScrollTrigger, useGSAP } from '../lib/gsap.js'
 import { EMAIL, houseRules, projects } from './data.js'
 import { OPEN_CASE_EVENT } from './events.js'
 import { LogoMark } from './RetroChrome.jsx'
 import RetroComputer from './RetroComputer.jsx'
-import SceneMount, { SceneBoundary } from './scenes/SceneMount.jsx'
+import { SceneBoundary } from './scenes/SceneMount.jsx'
 import { detectWebGL } from './scenes/webgl.js'
 
-const GoldenFloppyScene = lazy(() => import('./GoldenFloppy.jsx'))
+// The carousel occupies the first 86% of the hero; the rest is the dive into the next chapter.
+const HERO_EXIT = 0.86
+const HERO_STOPS = projects.map((_, index) => ((index + 0.5) / projects.length) * HERO_EXIT)
+const STORY_TITLE = 'Making Digital Products More Thoughtful, Useful, and Alive'
 
 export function Hero({ reducedMotion, introDelay }) {
   const [webgl] = useState(detectWebGL)
@@ -19,13 +22,20 @@ export function Hero({ reducedMotion, introDelay }) {
   const [active, setActive] = useState(0)
 
   useGSAP(() => {
+    const stage = sectionRef.current
+    const syncExit = (progress) => stage.style.setProperty('--hero-exit', Math.min(1, Math.max(0, (progress - HERO_EXIT) / (1 - HERO_EXIT))).toFixed(3))
     triggerRef.current = ScrollTrigger.create({
-      trigger: sectionRef.current,
+      trigger: stage,
       start: 'top top',
       end: 'bottom bottom',
+      // Settle on a project (or leave the hero) instead of stopping halfway between two.
+      snap: reducedMotion ? undefined : { snapTo: [0, ...HERO_STOPS, 1], directional: false, inertia: false, duration: { min: 0.25, max: 0.6 }, delay: 0.12, ease: 'power2.out' },
+      // Refresh (resize, orientation, fonts) re-derives the exit veil too, so it is never left stale.
+      onRefresh: (self) => syncExit(self.progress),
       onUpdate: (self) => {
         progressRef.current = self.progress
-        const next = Math.min(projects.length - 1, Math.floor(self.progress * projects.length))
+        syncExit(self.progress)
+        const next = Math.min(projects.length - 1, Math.floor((self.progress / HERO_EXIT) * projects.length))
         if (next !== activeRef.current) {
           activeRef.current = next
           setActive(next)
@@ -33,7 +43,7 @@ export function Hero({ reducedMotion, introDelay }) {
       },
     })
     if (reducedMotion) return
-    gsap.timeline({ defaults: { ease: 'power3.out' }, delay: introDelay })
+    gsap.timeline({ defaults: { ease: 'power3.out' }, delay: introDelay + 0.35 })
       .from('.hero__line', { yPercent: 40, autoAlpha: 0, filter: 'blur(8px)', duration: 1.1, stagger: 0.12 })
       .from('.hero__scroll, .work-bar', { autoAlpha: 0, y: 14, duration: 0.7, stagger: 0.1 }, '-=0.6')
   }, { scope: sectionRef, dependencies: [reducedMotion, introDelay], revertOnUpdate: true })
@@ -42,7 +52,7 @@ export function Hero({ reducedMotion, introDelay }) {
     const st = triggerRef.current
     if (!st) return
     const target = (index + projects.length) % projects.length
-    window.scrollTo({ top: st.start + (st.end - st.start) * ((target + 0.5) / projects.length), behavior: reducedMotion ? 'auto' : 'smooth' })
+    window.scrollTo({ top: st.start + (st.end - st.start) * HERO_STOPS[target], behavior: reducedMotion ? 'auto' : 'smooth' })
   }
 
   const project = projects[active]
@@ -53,7 +63,7 @@ export function Hero({ reducedMotion, introDelay }) {
         <div className="hero__smoke" aria-hidden="true"><i /><i /><i /></div>
         {webgl ? (
           <SceneBoundary fallback={<div className="retro-computer retro-computer--fallback" aria-hidden="true"><LogoMark size={160} /></div>}>
-            <RetroComputer projects={projects} activeIndex={active} progressRef={progressRef} reducedMotion={reducedMotion} />
+            <RetroComputer projects={projects} activeIndex={active} progressRef={progressRef} reducedMotion={reducedMotion} introDelay={introDelay} />
           </SceneBoundary>
         ) : <div className="retro-computer retro-computer--fallback" aria-hidden="true"><LogoMark size={160} /></div>}
         <div className="hero__copy">
@@ -106,9 +116,15 @@ export function AboutZoom({ reducedMotion }) {
   const sectionRef = useRef(null)
   useGSAP(() => {
     if (reducedMotion) return
+    // One camera move: descend over the office, let the title settle, then a sheet of paper
+    // rises into frame and becomes the Gazette below.
     gsap.timeline({ scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: 'bottom bottom', scrub: 0.6 } })
-      .fromTo('.farm', { scale: 0.9, yPercent: 0 }, { scale: 1.9, yPercent: 14, ease: 'none' }, 0)
-      .fromTo('.about-zoom__title', { scale: 0.85, autoAlpha: 0.55 }, { scale: 1.15, autoAlpha: 1, ease: 'none' }, 0)
+      .fromTo('.farm', { scale: 0.85, yPercent: -6, rotate: 4 }, { scale: 2.1, yPercent: 16, rotate: -3, ease: 'power1.inOut', duration: 1 }, 0)
+      .fromTo('.about-zoom__title', { scale: 0.8, autoAlpha: 0.4, yPercent: 10 }, { scale: 1.12, autoAlpha: 1, yPercent: -8, ease: 'none', duration: 0.75 }, 0)
+      .fromTo('.about-zoom__caption span', { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, stagger: 0.12, duration: 0.18 }, 0.22)
+      .to('.about-zoom__caption span', { autoAlpha: 0, y: -16, stagger: 0.05, duration: 0.12 }, 0.7)
+      .fromTo('.about-zoom__dusk', { autoAlpha: 0 }, { autoAlpha: 1, ease: 'none', duration: 0.3 }, 0.66)
+      .fromTo('.about-zoom__sheet', { yPercent: 100, rotateX: 18 }, { yPercent: 0, rotateX: 0, ease: 'power2.out', duration: 0.28 }, 0.72)
   }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
 
   return (
@@ -116,6 +132,9 @@ export function AboutZoom({ reducedMotion }) {
       <div className="about-zoom__stage">
         <CubicleFarm />
         <h2 className="about-zoom__title">About Us</h2>
+        <p className="about-zoom__caption"><span>Not a cubicle farm.</span> <span>A small studio,</span> <span>end-to-end.</span></p>
+        <div className="about-zoom__dusk" aria-hidden="true" />
+        <div className="about-zoom__sheet paper" aria-hidden="true" />
       </div>
     </section>
   )
@@ -125,6 +144,20 @@ export function Story({ reducedMotion }) {
   const sectionRef = useRef(null)
   useGSAP(() => {
     if (reducedMotion) return
+    // Editorial motion: rules are drawn, the headline is set word by word, the sidebar drifts
+    // at a slightly different depth to the columns.
+    gsap.fromTo('.story__masthead', { '--rule': 0 }, { '--rule': 1, duration: 1.1, ease: 'power3.inOut', scrollTrigger: { trigger: '.story__masthead', start: 'top 90%', once: true } })
+    gsap.fromTo('.story__title .word > span', { yPercent: 110, rotate: 4 }, {
+      yPercent: 0, rotate: 0, stagger: 0.045, duration: 0.9, ease: 'power3.out',
+      scrollTrigger: { trigger: '.story__title', start: 'top 85%', once: true },
+    })
+    gsap.fromTo('.story__columns blockquote', { scale: 0.92, rotate: -2, autoAlpha: 0 }, {
+      scale: 1, rotate: 0, autoAlpha: 1, duration: 0.8, ease: 'back.out(1.6)',
+      scrollTrigger: { trigger: '.story__columns blockquote', start: 'top 85%', once: true },
+    })
+    gsap.matchMedia().add('(min-width: 1081px)', () => {
+      gsap.fromTo('.story__aside', { y: 60 }, { y: -40, ease: 'none', scrollTrigger: { trigger: '.story__layout', start: 'top bottom', end: 'bottom top', scrub: 0.8 } })
+    })
     gsap.fromTo('.story__statement > span > span', { yPercent: 105 }, {
       yPercent: 0, stagger: 0.1, duration: 1, ease: 'power3.out',
       scrollTrigger: { trigger: '.story__statement', start: 'top 82%', once: true },
@@ -133,6 +166,21 @@ export function Story({ reducedMotion }) {
       strokeDashoffset: 0, duration: 1.4, stagger: 0.25, ease: 'power2.inOut',
       scrollTrigger: { trigger: '.venn', start: 'top 80%', once: true },
     })
+    gsap.fromTo('.story__columns > *', { y: 26, autoAlpha: 0 }, {
+      y: 0, autoAlpha: 1, stagger: 0.07, duration: 0.7, ease: 'power3.out',
+      scrollTrigger: { trigger: '.story__columns', start: 'top 82%', once: true },
+    })
+    const depth = { trigger: sectionRef.current, start: 'top bottom', end: 'bottom top', scrub: 0.8 }
+    gsap.fromTo('.gazette__layers i:nth-child(1)', { y: 80, rotate: -2.2 }, { y: -60, rotate: -1.2, ease: 'none', scrollTrigger: depth })
+    gsap.fromTo('.gazette__layers i:nth-child(2)', { y: 140, rotate: 1.8 }, { y: -110, rotate: 2.6, ease: 'none', scrollTrigger: depth })
+    gsap.utils.toArray('.gazette__fragments span').forEach((fragment, index) => {
+      gsap.fromTo(fragment, { y: 160 + index * 60, rotate: index % 2 ? 14 : -12 }, { y: -220 - index * 70, rotate: index % 2 ? -6 : 8, ease: 'none', scrollTrigger: depth })
+    })
+    // Leaving: the sheet settles back into the dark rather than simply scrolling away.
+    gsap.fromTo('.story', { rotateX: 0, scale: 1, transformPerspective: 1600, transformOrigin: '50% 100%' }, {
+      rotateX: 6, scale: 0.965, ease: 'none',
+      scrollTrigger: { trigger: sectionRef.current, start: 'bottom 90%', end: 'bottom top', scrub: 0.8 },
+    })
     gsap.fromTo('.story__annotation', { autoAlpha: 0, rotate: -10, x: -10 }, {
       autoAlpha: 1, rotate: -4, x: 0, duration: 0.6, delay: 0.9,
       scrollTrigger: { trigger: '.venn', start: 'top 80%', once: true },
@@ -140,7 +188,10 @@ export function Story({ reducedMotion }) {
   }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
 
   return (
-    <section className="paper story" id="studio" ref={sectionRef} aria-labelledby="story-title">
+    <section className="gazette zone" id="studio" ref={sectionRef} aria-labelledby="story-title">
+      <div className="gazette__layers" aria-hidden="true"><i /><i /></div>
+      <div className="gazette__fragments" aria-hidden="true"><span /><span /><span /><span /></div>
+      <div className="paper story">
       <div className="paper__curl" aria-hidden="true" />
       <div className="story__masthead">
         <span>VOL. 01</span>
@@ -148,9 +199,11 @@ export function Story({ reducedMotion }) {
         <span>PRICE: ONE GOOD CONVERSATION</span>
       </div>
       <p className="story__edition">STUDIO EDITION · WHAT WE BUILD · HOW WE THINK · WHY IT MATTERS</p>
-      <h2 id="story-title" className="story__title reveal">Making Digital Products More Thoughtful, Useful, and Alive</h2>
+      <h2 id="story-title" className="story__title" aria-label={STORY_TITLE}>
+        {STORY_TITLE.split(' ').map((word, index) => <Fragment key={index}>{index > 0 && ' '}<span className="word" aria-hidden="true"><span>{word}</span></span></Fragment>)}
+      </h2>
       <div className="story__layout">
-        <div className="story__columns reveal">
+        <div className="story__columns">
           <h3 className="story__subhead">What we build</h3>
           <p className="dropcap">DevCore is an independent software studio that designs and builds digital products, intelligent systems and experiences for the web. Small by design, serious about craft, and working with ambitious teams wherever they happen to be.</p>
           <h3 className="story__subhead">How we solve problems</h3>
@@ -194,6 +247,7 @@ export function Story({ reducedMotion }) {
           ))}
         </ol>
       </div>
+      </div>
     </section>
   )
 }
@@ -202,47 +256,21 @@ export function Convinced({ reducedMotion }) {
   const sectionRef = useRef(null)
   useGSAP(() => {
     if (reducedMotion) return
-    gsap.timeline({ scrollTrigger: { trigger: '.wave-band', start: 'top bottom', end: 'bottom top', scrub: 0.4 } })
-      .fromTo('#wave-turbulence', { attr: { baseFrequency: '0.002 0.06' } }, { attr: { baseFrequency: '0.01 0.002' }, ease: 'none' }, 0)
-      .fromTo('#wave-displace', { attr: { scale: 140 } }, { attr: { scale: 10 }, ease: 'none' }, 0)
+    // A single lit rule draws across as the line is read, then the spotlight opens onto the
+    // final reel of Chapter 11 below.
+    gsap.timeline({ scrollTrigger: { trigger: sectionRef.current, start: 'top 70%', end: 'bottom 40%', scrub: 0.5 } })
+      .fromTo('.convinced__rule', { scaleX: 0 }, { scaleX: 1, ease: 'power2.out', duration: 0.6 }, 0)
+      .fromTo('.convinced__spot', { autoAlpha: 0, scaleY: 0.4 }, { autoAlpha: 1, scaleY: 1, ease: 'none', duration: 0.4 }, 0.6)
   }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
 
   return (
     <section className="convinced" ref={sectionRef}>
-      <svg width="0" height="0" aria-hidden="true" focusable="false">
-        <filter id="wave-filter">
-          <feTurbulence id="wave-turbulence" type="fractalNoise" baseFrequency="0.004 0.04" numOctaves="1" seed="3" />
-          <feDisplacementMap id="wave-displace" in="SourceGraphic" scale="80" xChannelSelector="R" yChannelSelector="G" />
-        </filter>
-      </svg>
       <div className="convinced__copy">
         <h2 className="glow reveal">Still Not Convinced We&rsquo;re Serious About Software?</h2>
         <p className="reveal">We&rsquo;ve got one last trick up our sleeves.</p>
       </div>
-      <div className="wave-band" aria-hidden="true"><div /></div>
-    </section>
-  )
-}
-
-export function Golden({ reducedMotion }) {
-  const spinRef = useRef(0.6)
-  return (
-    <section className="golden">
-      <div className="golden__beams" aria-hidden="true"><i /><i /><i /></div>
-      <span className="golden__sign" aria-hidden="true">APPLAUSE</span>
-      <h2 className="glow reveal">Check Out This Golden Floppy</h2>
-      <p className="reveal">You made it this far. You deserve a save point.</p>
-      <div className="golden-floppy">
-        <button type="button" className="golden-floppy__hit" aria-label="Spin the golden floppy" onClick={() => { spinRef.current = 14 }} />
-        <SceneMount
-          className="golden-floppy__scene"
-          scene={GoldenFloppyScene}
-          spinRef={spinRef}
-          reducedMotion={reducedMotion}
-          fallback={<div className="golden-floppy__fallback" aria-hidden="true" />}
-        />
-      </div>
-      <small>Click it. It spins. That&rsquo;s the whole trick.</small>
+      <span className="convinced__rule" aria-hidden="true" />
+      <span className="convinced__spot" aria-hidden="true" />
     </section>
   )
 }
@@ -258,8 +286,17 @@ function RetroPhone() {
   )
 }
 
-export function Contact() {
+export function Contact({ reducedMotion }) {
+  const sectionRef = useRef(null)
   const [sent, setSent] = useState(false)
+
+  useGSAP(() => {
+    if (reducedMotion) return
+    // The closing spotlight settles down onto the title as the page reaches its end.
+    gsap.fromTo('.contact__spot', { yPercent: -30, scale: 1.25 }, { yPercent: 0, scale: 1, ease: 'none', scrollTrigger: { trigger: sectionRef.current, start: 'top bottom', end: 'top top', scrub: 0.8 } })
+    gsap.fromTo('.contact__cols > *', { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.12, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: '.contact__cols', start: 'top 85%', once: true } })
+    gsap.fromTo('.newbiz', { rotateX: -70, autoAlpha: 0, transformOrigin: '50% 0%' }, { rotateX: 0, autoAlpha: 1, duration: 0.8, ease: 'power3.out', scrollTrigger: { trigger: '.newbiz', start: 'top 90%', once: true } })
+  }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
 
   function handleSubmit(event) {
     event.preventDefault()
@@ -274,21 +311,21 @@ export function Contact() {
   }
 
   return (
-    <section className="contact" id="contact" aria-labelledby="contact-heading">
+    <section className="contact" id="contact" ref={sectionRef} aria-labelledby="contact-heading">
       <div className="contact__spot" aria-hidden="true" />
-      <p className="kicker reveal">Chapter 11 — Start a project</p>
+      <p className="kicker reveal">Chapter 11 — The enquiry</p>
       <h2 className="glow contact__title reveal" id="contact-heading" aria-label="Have a good one in mind?">
         <span aria-hidden="true"><span>Have a good one</span></span>
         <span aria-hidden="true"><span><em>in mind?</em></span></span>
       </h2>
       <p className="contact__lede reveal">Tell us what you&rsquo;re thinking about. We&rsquo;ll take it from there, thoughtfully and without the hard sell.</p>
       <div className="contact__cols">
-        <div className="reveal">
+        <div>
           <h3>General Enquiries</h3>
           <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
           <a href={`mailto:${EMAIL}?subject=Book%20a%20call`}>Book a call</a>
         </div>
-        <form className="enquiry reveal" onSubmit={handleSubmit}>
+        <form className="enquiry" onSubmit={handleSubmit}>
           <div className="enquiry__bar"><span>ENQUIRY.TXT</span></div>
           <label htmlFor="enquiry-name">NAME<input id="enquiry-name" name="name" autoComplete="name" required /></label>
           <label htmlFor="enquiry-email">EMAIL<input id="enquiry-email" name="email" type="email" autoComplete="email" required /></label>
@@ -296,7 +333,7 @@ export function Contact() {
           <button type="submit"><Mail size={15} /> Open email to send</button>
           <p aria-live="polite">{sent ? 'Your email app should open with the message ready. Nothing was sent automatically.' : 'This does not send anything by itself: it opens your email app with the message filled in. Nothing is stored here.'}</p>
         </form>
-        <div className="reveal">
+        <div>
           <h3>On This Page</h3>
           <a href="#work">Case Files</a>
           <a href="#services">What We Build</a>
@@ -304,7 +341,7 @@ export function Contact() {
           <a href="#quality">The Fine Print</a>
         </div>
       </div>
-      <div className="newbiz reveal">
+      <div className="newbiz">
         <RetroPhone />
         <div>
           <h3>New business</h3>

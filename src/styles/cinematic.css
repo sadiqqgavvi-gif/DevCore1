@@ -1,0 +1,230 @@
+/* ==========================================================================
+   DEVCORE — cinematic layer
+   Imported AFTER App.css (and therefore after every section stylesheet), so it
+   only adds to / refines existing rules. Delete this file + the import in
+   App.jsx to revert all visual changes except the 3D scene.
+   ========================================================================== */
+
+/* ---------- Global atmosphere: vignette + film grain ---------- */
+.environment-host::after {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 60% 45%, transparent 36%, rgba(4, 5, 10, .64) 100%);
+  content: '';
+  pointer-events: none;
+}
+
+.site-shell::after {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  opacity: .05;
+  pointer-events: none;
+  content: '';
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- Refined typography ---------- */
+.headline-accent { text-shadow: 0 0 90px rgba(108, 139, 255, .42), 0 0 22px rgba(140, 170, 255, .18); }
+
+.what-we-do__title-line:not(.what-we-do__title-line--muted),
+.work-meta h3 {
+  background: linear-gradient(180deg, #ffffff 18%, #aebbe8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Signal band (kinetic type, under the hero) ---------- */
+.signal-band {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  padding: clamp(26px, 4.5vw, 62px) 0;
+  border-top: 1px solid rgba(198, 207, 255, .12);
+  border-bottom: 1px solid rgba(198, 207, 255, .1);
+  background: linear-gradient(180deg, rgba(8, 9, 15, .62), rgba(8, 9, 15, .84));
+}
+.signal-band::before,
+.signal-band::after {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  width: 14vw;
+  content: '';
+  pointer-events: none;
+}
+.signal-band::before { left: 0; background: linear-gradient(90deg, #08090d, transparent); }
+.signal-band::after { right: 0; background: linear-gradient(270deg, #08090d, transparent); }
+.signal-band__skew { will-change: transform; }
+.signal-band__track { display: flex; width: max-content; animation: signal-scroll 42s linear infinite; }
+.signal-band__set { display: flex; flex: none; align-items: center; }
+.signal-band__set span {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(22px, 4vw, 56px);
+  padding-right: clamp(22px, 4vw, 56px);
+  color: transparent;
+  font: 500 clamp(54px, 9vw, 140px)/1 var(--display);
+  letter-spacing: -.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  -webkit-text-stroke: 1px rgba(185, 201, 255, .36);
+}
+.signal-band__set span:nth-child(even) {
+  background: linear-gradient(180deg, #e9eeff, #7f93d8);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-stroke: 0;
+}
+.signal-band__set i { color: #9dc9ff; font: normal 18px var(--mono); -webkit-text-stroke: 0; -webkit-text-fill-color: #9dc9ff; }
+@keyframes signal-scroll { to { transform: translateX(-50%); } }
+
+/* ---------- Statement (scroll-scrubbed manifesto) ---------- */
+.statement {
+  position: relative;
+  z-index: 1;
+  min-height: 92svh;
+  display: grid;
+  align-content: center;
+  padding-top: 110px;
+  padding-bottom: 110px;
+  overflow: hidden;
+  border-top: 1px solid rgba(198, 207, 255, .1);
+  background:
+    radial-gradient(ellipse at 50% 52%, rgba(60, 88, 200, .15), transparent 62%),
+    linear-gradient(180deg, rgba(8, 9, 15, .72), rgba(8, 9, 15, .56));
+}
+.statement .eyebrow { margin: 0 0 0 8%; color: #9eb4f3; }
+.statement__text {
+  max-width: 1180px;
+  margin: 30px 4% 0 8%;
+  color: #eef1fb;
+  font: 500 clamp(34px, 5.6vw, 86px)/1.04 var(--display);
+  letter-spacing: -.06em;
+}
+.statement__word { display: inline-block; margin-right: .24em; will-change: opacity, transform; }
+.statement__word--accent { color: #a7bcff; text-shadow: 0 0 50px rgba(108, 139, 255, .38); }
+.statement__foot { display: flex; align-items: center; gap: 18px; margin: 54px 0 0 8%; color: #7d839a; font: 7px var(--mono); letter-spacing: .13em; }
+.statement__rule { width: 55px; height: 1px; background: linear-gradient(90deg, #97b5ff, transparent); }
+
+/* ==========================================================================
+   CAPABILITIES (WhatWeDo) — accent lighting, animated edge, stage glow
+   ========================================================================== */
+@property --edge-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+.what-we-do .service-entry--feature { --service-accent: #9fbaff; }
+.what-we-do .service-entry--ai { --service-accent: #c3a6ff; }
+.what-we-do .service-entry--systems { --service-accent: #7fd6e8; }
+.what-we-do .service-entry--design { --service-accent: #e4b6ff; }
+.what-we-do .service-entry--platforms { --service-accent: #8fc7ff; }
+.what-we-do .service-entry--cloud { --service-accent: #8fe0b5; }
+
+.what-we-do .service-orbit::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(86vw, 1150px);
+  height: 62%;
+  background: radial-gradient(ellipse at center, rgba(96, 128, 255, .17), transparent 62%);
+  content: '';
+  filter: blur(28px);
+  pointer-events: none;
+  transform: translate(-50%, -34%);
+}
+.what-we-do .service-orbit__core { box-shadow: 0 0 120px rgba(93, 120, 255, .26), 0 0 40px rgba(93, 120, 255, .16), inset 0 0 25px rgba(174, 200, 255, .12); }
+
+.what-we-do .service-entry__head svg { filter: drop-shadow(0 0 6px var(--service-accent)); }
+
+.what-we-do .service-entry::before {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  padding: 1px;
+  opacity: 0;
+  pointer-events: none;
+  content: '';
+  background: conic-gradient(from var(--edge-angle), transparent 0 60%, var(--service-accent) 82%, #ffffff 90%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  transition: opacity .45s;
+  animation: service-edge 5s linear infinite paused;
+}
+.what-we-do .service-entry.is-active::before { opacity: 1; animation-play-state: running; }
+@keyframes service-edge { to { --edge-angle: 360deg; } }
+
+.what-we-do .service-entry.is-active {
+  box-shadow:
+    0 34px 80px rgba(0, 0, 0, .5),
+    0 0 64px color-mix(in srgb, var(--service-accent) 22%, transparent),
+    inset 0 1px rgba(236, 242, 255, .1);
+}
+
+/* ==========================================================================
+   WORK — focus-driven depth, parallax numerals, light sweep, accent glow
+   (--focus / --offset are written per card by useCinematicMotion;
+    defaults below keep mobile + reduced-motion fully visible and static)
+   ========================================================================== */
+.work .work-track { counter-reset: workcard; }
+
+.work .work-card {
+  --focus: 1;
+  --offset: 0;
+  --work-accent: #9fb5ff;
+  opacity: calc(.4 + var(--focus) * .6);
+  transform: scale(calc(.9 + var(--focus) * .1));
+  will-change: transform, opacity;
+}
+.work .work-card.commerce { --work-accent: #e9d9a8; }
+.work .work-card.intelligence { --work-accent: #a99cff; }
+.work .work-card.operations { --work-accent: #9fe0b0; }
+.work .work-card.design-system { --work-accent: #c9a8ff; }
+
+/* Oversized outlined numeral, parallaxing against the horizontal travel */
+.work .work-card::before {
+  position: absolute;
+  z-index: -1;
+  top: -16%;
+  left: -3%;
+  color: transparent;
+  content: counter(workcard, decimal-leading-zero);
+  counter-increment: workcard;
+  font: 700 clamp(160px, 24vw, 360px)/.8 var(--display);
+  letter-spacing: -.09em;
+  pointer-events: none;
+  transform: translate3d(calc(var(--offset) * -220px), 0, 0);
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--work-accent) 24%, transparent);
+}
+.work .work-card:nth-child(even)::before { right: -3%; left: auto; }
+
+/* Accent glow + light sheen that sweeps across the artwork as the card travels */
+.work .work-artwork { box-shadow: 0 0 70px color-mix(in srgb, var(--work-accent) 18%, transparent), 0 24px 60px rgba(0, 0, 0, .35); }
+.work .work-artwork::after {
+  position: absolute;
+  z-index: 4;
+  inset: -1px;
+  background: linear-gradient(115deg, transparent 38%, color-mix(in srgb, var(--work-accent) 26%, transparent) 50%, transparent 62%);
+  content: '';
+  mix-blend-mode: screen;
+  opacity: calc(.15 + var(--focus) * .65);
+  pointer-events: none;
+  transform: translateX(calc(var(--offset) * -120%));
+}
+.work .work-card:hover .work-artwork { border-color: color-mix(in srgb, var(--work-accent) 62%, transparent); }
+
+@media (max-width: 760px) {
+  .work .work-card::before { display: none; }
+  .signal-band::before, .signal-band::after { width: 8vw; }
+  .statement { min-height: 80svh; padding-top: 84px; padding-bottom: 84px; }
+  .statement .eyebrow, .statement__foot { margin-left: 0; }
+  .statement__text { margin: 24px 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-band__track { animation: none; }
+  .what-we-do .service-entry::before { animation: none; }
+  .work .work-card { will-change: auto; }
+}

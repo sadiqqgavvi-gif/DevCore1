@@ -101,6 +101,7 @@ export const chapters = [
   ['process', '08', 'How we work'],
   ['quality', '09', 'Quality & reliability'],
   ['assembler', '10', 'One coherent system'],
+  ['reel', '11', 'Start a project'],
   ['contact', '11', 'Start a project'],
 ]
 

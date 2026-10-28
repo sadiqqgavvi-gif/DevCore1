@@ -240,6 +240,18 @@ html.is-booting .chapter { opacity: 0; }
 /* ---------- Hero tweaks ---------- */
 
 @media (min-width: 761px) { .hero__copy { top: 44%; } }
+/* Hero exit: copy and carousel part ways while a veil closes into the prelude's colour. */
+.hero__stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #0d0a10;
+  opacity: calc(var(--hero-exit, 0) * 1.5 - 0.35);
+  pointer-events: none;
+}
+.hero__copy { translate: 0 calc(var(--hero-exit, 0) * -90px); }
+.work-bar { translate: 0 calc(var(--hero-exit, 0) * 70px); }
 .work-bar .work-bar__open {
   display: inline-flex;
   height: auto;
@@ -316,33 +328,98 @@ html.is-booting .chapter { opacity: 0; }
 .cases {
   position: relative;
   overflow: hidden;
+  /* clip, unlike hidden, cannot be scrolled sideways by focus or scrollIntoView. */
+  overflow: clip;
   background:
     linear-gradient(rgba(252, 249, 243, 0.035) 1px, transparent 1px) 0 0 / 100% 64px,
     #0f0b0e;
 }
-.cases__track { display: flex; align-items: center; gap: 7vw; width: max-content; height: 100vh; height: 100svh; padding: 0 var(--gutter); }
-.cases__intro { flex: none; width: min(500px, 80vw); }
-.cases__intro h2 { margin-bottom: 18px; font-size: clamp(60px, 8vw, 140px); font-weight: 500; line-height: 0.95; }
+/* Default: a vertical stack (no JS, reduced motion, short landscape phones). The horizontal
+   journey only applies while a matchMedia context has added .is-hscroll. */
+.cases__track { display: flex; flex-direction: column; gap: 90px; padding: 120px var(--gutter) 110px; }
+.cases__intro { max-width: 640px; }
+.cases__intro h2 { margin-bottom: 18px; font-size: clamp(56px, 8vw, 140px); font-weight: 500; line-height: 0.95; }
 .cases__intro p { font-size: 19px; color: var(--cream-dim); }
-.cases__hint { display: inline-flex; align-items: center; gap: 8px; margin-top: 28px; font-family: var(--pixel); font-size: 18px; color: var(--accent-b); animation: nudge 1.6s ease-in-out infinite; }
+.cases__hint { display: none; align-items: center; gap: 8px; margin-top: 28px; font-family: var(--pixel); font-size: 18px; color: var(--accent-b); animation: nudge 1.6s ease-in-out infinite; }
 @keyframes nudge { 50% { transform: translateX(8px); } }
 .case {
-  flex: none;
   display: grid;
   grid-template-columns: 1.15fr 1fr;
   align-items: center;
   gap: 4vw;
-  width: min(1120px, 84vw);
   perspective: 1400px;
 }
+.cases__hud, .cases__progress { display: none; }
+
+.cases.is-hscroll .cases__track { flex-direction: row; align-items: center; gap: 7vw; width: max-content; height: 100vh; height: 100svh; padding: 0 var(--gutter); }
+.is-hscroll .cases__intro { flex: none; width: min(500px, 80vw); }
+.is-hscroll .case { flex: none; width: min(1120px, 84vw); }
+.is-hscroll .cases__outro { flex: none; width: min(480px, 80vw); }
+.is-hscroll .cases__hint { display: inline-flex; }
+.is-hscroll .cases__progress { display: block; }
+.cases__hud {
+  position: absolute;
+  z-index: 3;
+  right: var(--gutter);
+  bottom: 58px;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 300px;
+  padding: 7px 8px;
+  border: 1px solid rgba(252, 249, 243, 0.2);
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, var(--accent-a), var(--accent-b)) left bottom / calc(var(--cases-progress, 0) * 100%) 2px no-repeat,
+    rgba(16, 12, 16, 0.78);
+}
+.is-hscroll .cases__hud { display: grid; }
+.cases__hud button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(252, 249, 243, 0.35);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, opacity 0.2s;
+}
+.cases__hud button:hover:not(:disabled) { background: var(--cream); color: var(--night); }
+.cases__hud button:disabled { opacity: 0.3; cursor: default; }
+.cases__hud-info { display: grid; min-width: 0; text-align: center; }
+.cases__hud-info span { font-family: var(--pixel); font-size: 15px; letter-spacing: 0.08em; color: var(--accent-b); }
+.cases__hud-info strong { overflow: hidden; font-size: 16px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
+
+/* Tall phones: the same pinned journey, recomposed for a narrow screen. */
+.cases.is-compact .cases__track { gap: 9vw; padding: 70px 7vw 150px; }
+.is-compact .case { width: 86vw; grid-template-columns: 1fr; gap: 16px; }
+.is-compact .cases__intro, .is-compact .cases__outro { width: 84vw; }
+.is-compact .cases__intro h2 { font-size: clamp(52px, 16vw, 84px); }
+.is-compact .cases__intro p { font-size: 17px; }
+.is-compact .case-visual { aspect-ratio: 16 / 10; }
+.is-compact .case__copy .kicker { margin-bottom: 8px; font-size: 15px; }
+.is-compact .case__copy h3 { font-size: clamp(28px, 8vw, 40px); }
+.is-compact .case__line { margin-bottom: 8px; font-size: 18px; }
+.is-compact .case__copy > p:not(.kicker):not(.case__line) {
+  display: -webkit-box;
+  margin-bottom: 14px;
+  overflow: hidden;
+  font-size: 15px;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.is-compact .case__copy .chips { display: none; }
+.is-compact .cases__progress { display: none; }
+.is-compact .cases__hud { left: 16px; right: 16px; bottom: 70px; min-width: 0; }
+@media (min-width: 600px) { .is-compact .cases__hud { left: 50%; right: auto; width: min(420px, 70vw); bottom: 96px; transform: translateX(-50%); } }
 .case__copy h3 { margin-bottom: 8px; font-size: clamp(34px, 3.8vw, 62px); font-weight: 500; line-height: 1.05; }
 .case__line { margin-bottom: 14px; font-size: 22px; font-style: italic; color: #ffd2a1; }
 .case__copy > p:not(.kicker):not(.case__line) { margin-bottom: 18px; font-size: 17px; color: var(--cream-dim); }
 .case__copy .chips { margin-bottom: 24px; }
 .cases__outro {
-  flex: none;
   position: relative;
-  width: min(480px, 80vw);
+  max-width: 520px;
   padding: 44px 36px;
   border: 2px dashed rgba(252, 249, 243, 0.5);
 }
@@ -350,7 +427,7 @@ html.is-booting .chapter { opacity: 0; }
 .cases__outro p { margin: 10px 0 24px; color: var(--cream-dim); }
 .cases__stamp { position: absolute; top: -18px; right: 20px; padding: 2px 10px; background: var(--accent-a); color: var(--night); font-family: var(--pixel); font-size: 18px; transform: rotate(4deg); }
 .cases__progress { position: absolute; left: var(--gutter); right: var(--gutter); bottom: 34px; height: 2px; background: rgba(252, 249, 243, 0.14); }
-.cases__progress i { display: block; height: 100%; transform: scaleX(0); transform-origin: left; background: linear-gradient(90deg, var(--accent-a), var(--accent-b)); }
+.cases__progress i { display: block; height: 100%; transform: scaleX(var(--cases-progress, 0)); transform-origin: left; background: linear-gradient(90deg, var(--accent-a), var(--accent-b)); }
 
 .case-visual {
   container-type: inline-size;
@@ -491,9 +568,30 @@ html.is-booting .chapter { opacity: 0; }
   width: min(380px, 30vw);
   aspect-ratio: 1;
   margin: 12vh auto 16vh;
-  transform: rotateX(58deg) rotateZ(-45deg);
+  transform: rotateX(var(--tilt, 58deg)) rotateZ(var(--spin, -45deg));
   transform-style: preserve-3d;
 }
+.lab-plate.is-active { scale: 1.04; }
+
+/* Tall phones: the pinned sequence, recomposed: compact stack on top, tabs and panel below. */
+.lab.is-pinned.is-compact { display: block; height: 100vh; height: 100svh; min-height: 0; padding: 68px 16px 20px; }
+.is-compact .lab__grid { grid-template-columns: 1fr; gap: 6px; height: 100%; align-content: start; }
+.is-compact .lab__visual { display: grid; place-items: end center; height: 34svh; padding-bottom: 1svh; }
+.is-compact .lab__stack { width: min(170px, 44vw); margin: 0 auto; }
+.is-compact .lab-plate { padding: 8px 10px; border-radius: 6px; }
+.is-compact .lab-plate__name { font-size: 13px; }
+.is-compact .lab-plate__code span { height: 4px; margin-top: 6px; }
+.is-compact .lab__note { display: none; }
+.is-compact .lab__copy .kicker { margin-bottom: 6px; font-size: 14px; }
+.is-compact .lab__copy h2 { margin-bottom: 10px; font-size: clamp(28px, 7.6vw, 38px); }
+.is-compact .lab__lede { display: none; }
+.is-compact .lab__tabs { grid-template-columns: 1fr 1fr; gap: 6px; }
+.is-compact .lab__tabs button { gap: 8px; min-height: 44px; padding: 8px 10px; font-size: 14.5px; line-height: 1.2; }
+.is-compact .lab__tabs button span { font-size: 14px; }
+.is-compact .lab__panel { min-height: 0; margin-top: 12px; padding-left: 12px; }
+.is-compact .lab__panel h3 { font-size: 19px; }
+.is-compact .lab__panel p { margin-bottom: 10px; font-size: 14.5px; line-height: 1.45; }
+.is-compact .lab__panel .chips > li { font-size: 14px; }
 .lab-plate {
   position: absolute;
   inset: 0;
@@ -502,7 +600,7 @@ html.is-booting .chapter { opacity: 0; }
   border-radius: 8px;
   transform: translateZ(var(--lift, calc((3 - var(--i)) * 70px)));
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3), 18px 18px 40px rgba(0, 0, 0, 0.45);
-  transition: filter 0.3s, border-color 0.3s;
+  transition: filter 0.3s, border-color 0.3s, scale 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
   text-align: left;
 }
 .lab-plate--interface { background: rgba(243, 234, 214, 0.92); color: #2a1f17; }
@@ -553,86 +651,9 @@ html.is-booting .chapter { opacity: 0; }
 .eco__marks { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 40px; margin: 0; padding: 0; list-style: none; }
 .eco__role { font-size: 15px; color: var(--ink-soft); }
 
-/* ---------- F. Process timeline ---------- */
+/* F. Process timeline: see retro-depth.css */
 
-.pt { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; min-height: 100svh; padding: 110px var(--gutter) 60px; }
-.pt__head h2 { font-size: clamp(44px, 5.6vw, 96px); }
-.pt__head .process__lede { margin: 10px 0 36px; }
-.pt__grid { display: grid; grid-template-columns: 340px 1fr; align-items: start; gap: 48px; width: 100%; max-width: 1180px; margin: 0 auto; text-align: left; }
-.pt__list { position: relative; margin: 0; padding: 0 0 0 22px; list-style: none; }
-.pt__list button {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  width: 100%;
-  padding: 11px 0;
-  border: 0;
-  background: none;
-  color: rgba(252, 249, 243, 0.5);
-  font-size: 20px;
-  text-align: left;
-  cursor: pointer;
-  transition: color 0.25s, transform 0.25s;
-}
-.pt__num { font-family: var(--pixel); font-size: 18px; color: var(--accent-b); }
-.pt__list li.is-done button { color: rgba(252, 249, 243, 0.78); }
-.pt__list li.is-active button { color: var(--cream); text-shadow: var(--glow); transform: translateX(6px); }
-.pt__rail { position: absolute; left: 0; top: 12px; bottom: 12px; width: 2px; background: rgba(252, 249, 243, 0.15); }
-.pt__rail i { display: block; height: 100%; transform: scaleY(var(--pt-progress, 0)); transform-origin: top; background: linear-gradient(var(--accent-a), var(--accent-b)); }
-.pt__mobile-detail { display: none; }
-.pt__terminal { width: 100%; margin: 0; }
-.pt__terminal .dos__body { min-height: 400px; }
-.pt-state > * { animation: type-in 0.4s steps(14) both; }
-.pt-state > *:nth-child(2) { animation-delay: 0.12s; }
-.pt-state > *:nth-child(3) { animation-delay: 0.24s; }
-.pt-state > *:nth-child(4) { animation-delay: 0.42s; }
-.pt-state > *:nth-child(5) { animation-delay: 0.55s; }
-.pt-state__title { margin: 6px 0 14px; color: #fff; }
-.pt-state dl { margin: 0; }
-.pt-state dl > div { margin-bottom: 14px; }
-.pt-state dt { color: #f6d58a; }
-.pt-state dd { margin: 2px 0 0; color: #dfe1ff; font-size: 21px; }
-.pt-state__bar { margin: 4px 0 10px; color: #6dfc8b; letter-spacing: 0.04em; }
-@keyframes type-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
-
-/* ---------- G. Quality ---------- */
-
-.quality { padding: 120px var(--gutter); }
-.spec-sheet {
-  position: relative;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: clamp(24px, 4vw, 48px);
-  border: 2px solid var(--ink);
-  background: rgba(255, 255, 255, 0.28);
-  box-shadow: 12px 12px 0 rgba(42, 31, 23, 0.14);
-}
-.spec-sheet__head h2 { font-size: clamp(46px, 6.4vw, 104px); font-weight: 500; line-height: 1; }
-.spec-sheet__head p:last-child { max-width: 560px; margin-top: 12px; font-size: 18px; color: var(--ink-soft); }
-.spec-table { margin-top: 34px; }
-.spec-row { display: grid; grid-template-columns: 40px 230px 1fr 1fr; align-items: start; gap: 22px; padding: 17px 0; border-top: 1px dashed rgba(42, 31, 23, 0.4); }
-.spec-row--head { border-top: 2px solid var(--ink); font-family: var(--pixel); font-size: 17px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
-.spec-row strong { font-size: 20px; font-weight: 600; }
-.spec-row > span:not(:first-child) { font-size: 16px; }
-.spec-row__tick { width: 26px; height: 26px; }
-.spec-row__tick rect { fill: none; stroke: var(--ink); stroke-width: 2; }
-.spec-row__tick path { fill: none; stroke: #a8432d; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; }
-.spec-stamp {
-  position: absolute;
-  top: clamp(24px, 4vw, 48px);
-  right: clamp(24px, 4vw, 48px);
-  padding: 10px 16px 8px;
-  border: 4px double #a8432d;
-  border-radius: 6px;
-  color: #a8432d;
-  font-family: var(--pixel);
-  font-size: 26px;
-  line-height: 1;
-  text-align: center;
-  opacity: 0.85;
-  transform: rotate(-12deg);
-}
-.spec-sheet__foot { margin-top: 22px; font-size: 13px; color: var(--ink-soft); }
+/* G. Quality: see retro-depth.css (The Fine Print terminal) */
 
 /* ---------- I. Assembler ---------- */
 
@@ -651,7 +672,53 @@ html.is-booting .chapter { opacity: 0; }
 .assembler.is-static { height: auto; }
 .assembler.is-static .assembler__stage { position: relative; height: 100vh; }
 
+/* ---------- About zoom: captions and the sheet that becomes the Gazette ---------- */
+
+.about-zoom__caption {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: 16vh;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 0.4em;
+  padding: 0 16px;
+  font-size: clamp(22px, 2.6vw, 40px);
+  font-style: italic;
+  color: #1d1712;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.about-zoom__caption span { display: inline-block; padding: 2px 10px; background: rgba(248, 247, 243, 0.82); }
+.about-zoom__sheet {
+  position: absolute;
+  z-index: 4;
+  inset: 22% 0 0;
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -30px 70px rgba(0, 0, 0, 0.28);
+  transform: translateY(100%);
+}
+
 /* ---------- H. Story additions ---------- */
+
+/* The rising sheet ends exactly where the Gazette begins, so the two read as one page. */
+.story { margin-top: 0; box-shadow: none; }
+.story .paper__curl { display: none; }
+.story__masthead { position: relative; border: 0; }
+.story__masthead::before, .story__masthead::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  transform: scaleX(var(--rule, 1));
+  transform-origin: left;
+}
+.story__masthead::before { top: 0; border-top: 4px double var(--ink); }
+.story__masthead::after { bottom: 0; border-bottom: 1px solid var(--ink); transform-origin: right; }
+.story__title .word { display: inline-block; overflow: hidden; padding-bottom: 0.08em; vertical-align: top; }
+.story__title .word > span { display: inline-block; }
+.story__aside { will-change: transform; }
 
 .story__edition { margin: -36px 0 40px; font-family: var(--pixel); font-size: 17px; letter-spacing: 0.18em; text-align: center; color: var(--ink-soft); }
 .story__layout { display: grid; grid-template-columns: 1fr 330px; gap: 56px; max-width: 1280px; margin: 0 auto; }
@@ -708,8 +775,6 @@ html.is-booting .chapter { opacity: 0; }
 .footer__top { grid-column: 1 / -1; justify-self: center; font-family: var(--pixel); font-size: 18px; color: var(--cream-dim); text-underline-offset: 4px; }
 .footer__top:hover { color: var(--accent-b); }
 
-.golden-floppy__scene { position: absolute; inset: 0; }
-.golden-floppy__fallback { position: absolute; inset: 24%; border-radius: 6px; background: linear-gradient(135deg, #f3d88a, #b9832c); transform: rotate(-8deg); }
 
 /* ---------- Responsive ---------- */
 
@@ -734,16 +799,11 @@ html.is-booting .chapter { opacity: 0; }
   .story__annotation { display: none; }
   .eco__band { grid-template-columns: 180px 1fr; }
   .eco__role { grid-column: 2; }
-  .spec-row { grid-template-columns: 36px 180px 1fr 1fr; gap: 16px; }
 }
 
 @media (max-width: 899px), (prefers-reduced-motion: reduce) {
-  .cases__track { flex-direction: column; align-items: stretch; gap: 90px; width: auto; height: auto; padding: 120px var(--gutter) 110px; }
-  .cases__hint, .cases__progress { display: none; }
-  .case, .cases__intro, .cases__outro { width: auto; }
   .lab { min-height: 0; }
   .lab__stack { margin: 12vh auto 15vh; }
-  .pt { min-height: 0; }
 }
 
 @media (max-width: 899px) {
@@ -753,15 +813,6 @@ html.is-booting .chapter { opacity: 0; }
   .cap-art { max-width: 130px; }
   .lab__grid { grid-template-columns: 1fr; }
   .lab__stack { width: min(300px, 62vw); }
-  .pt__grid { grid-template-columns: 1fr; }
-  .pt__terminal { display: none; }
-  .pt__list button { color: var(--cream); }
-  .pt__list li.is-active button { transform: none; }
-  .pt__mobile-detail { display: block; margin: 0 0 18px; padding: 12px 14px; border: 1px solid rgba(252, 249, 243, 0.16); background: rgba(33, 37, 166, 0.35); font-size: 16px; color: var(--cream-dim); }
-  .pt__mobile-detail p + p { margin-top: 6px; }
-  .pt__mobile-detail b { color: #f6d58a; font-family: var(--pixel); font-size: 17px; font-weight: 400; }
-  .pt__rail { display: none; }
-  .pt__list { padding-left: 0; }
   .assembler { height: 220vh; }
   .assembler__scene { left: 0; top: 34%; }
   .assembler__copy { top: 96px; right: var(--gutter); width: auto; transform: none; }
@@ -779,14 +830,26 @@ html.is-booting .chapter { opacity: 0; }
   .story__layout .story__columns { column-count: 1; }
   .story__statement > span:nth-child(2) { padding-left: 6vw; }
   .story__statement > span:nth-child(3) { padding-left: 12vw; }
-  .spec-row { grid-template-columns: 30px 1fr; gap: 4px 12px; }
-  .spec-row > span:nth-child(3), .spec-row > span:nth-child(4) { grid-column: 2; }
-  .spec-row > span:nth-child(4) { color: var(--ink-soft); }
-  .spec-row--head { display: none; }
-  .spec-stamp { position: static; display: inline-block; margin-top: 16px; font-size: 20px; }
   .case-dialog dl > div { grid-template-columns: 1fr; gap: 4px; }
   .hero { height: 300vh; }
   .work-bar__open { font-size: 15px; }
+}
+
+/* Phones held sideways: very little height, plenty of width. Recompose rather than squash. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .nav { height: 58px; }
+  .hero__copy { top: 70px; width: 52vw; transform: none; }
+  .hero h1 { font-size: clamp(28px, 8.5vh, 46px); }
+  .hero__scroll { margin-top: 10px; font-size: 15px; }
+  .work-bar { left: var(--gutter); right: auto; bottom: 12px; width: min(380px, 46vw); padding: 8px 10px; }
+  .work-bar__info em { display: none; }
+  .toast { display: none; }
+  .case { grid-template-columns: 1.1fr 1fr; gap: 24px; }
+  .case-visual { max-height: 72vh; }
+  .cases__track { gap: 60px; padding-top: 80px; }
+  .lab__grid { grid-template-columns: 1fr 1fr; }
+  .lab__stack { width: min(220px, 30vw); margin: 14vh auto; }
+  .about-zoom__caption { bottom: 8vh; font-size: 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

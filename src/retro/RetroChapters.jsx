@@ -1,17 +1,17 @@
-import { lazy, useEffect, useRef, useState } from 'react'
-import { ArrowRight, ArrowUpRight, X } from 'lucide-react'
+import { Fragment, lazy, useEffect, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, ArrowUpRight, X } from 'lucide-react'
 import { gsap, ScrollTrigger, useGSAP } from '../lib/gsap.js'
 import {
   capabilities, caseFiles, EMAIL, labLayers, processStages, projects, qualityPrinciples, techGroups, tools,
 } from './data.js'
+import { OPEN_CASE_EVENT } from './events.js'
+import { DESKTOP_MOTION, MOBILE_LANDSCAPE, MOBILE_PORTRAIT, PROCESS_FLOW, PROCESS_PINNED, roomForPinnedScene } from './motionModes.js'
 import { LogoMark } from './RetroChrome.jsx'
 import SceneMount from './scenes/SceneMount.jsx'
 
 const PreludeScene = lazy(() => import('./scenes/PreludeScene.jsx'))
 const AssemblerScene = lazy(() => import('./scenes/AssemblerScene.jsx'))
 
-import { OPEN_CASE_EVENT } from './events.js'
-const DESKTOP_MOTION = '(min-width: 900px) and (prefers-reduced-motion: no-preference)'
 
 function useScrollProgress(sectionRef, progressRef) {
   useGSAP(() => {
@@ -144,9 +144,17 @@ function CaseDialog({ index, onClose }) {
   )
 }
 
+
+const nearestIndex = (points, value) => points.reduce((best, point, index) => (Math.abs(point - value) < Math.abs(points[best] - value) ? index : best), 0)
+
 export function CaseFiles() {
   const sectionRef = useRef(null)
+  const triggerRef = useRef(null)
+  const pointsRef = useRef([])
+  const panelRef = useRef(0)
   const [openIndex, setOpenIndex] = useState(null)
+  // 0 = intro panel, 1..n = case files, n + 1 = outro panel.
+  const [panel, setPanel] = useState(0)
 
   useEffect(() => {
     const open = (event) => setOpenIndex(event.detail)
@@ -155,28 +163,108 @@ export function CaseFiles() {
   }, [])
 
   useGSAP(() => {
+    const section = sectionRef.current
+    const track = section.querySelector('.cases__track')
     const mm = gsap.matchMedia()
-    mm.add(DESKTOP_MOTION, () => {
-      const track = sectionRef.current.querySelector('.cases__track')
+
+    // Desktop and tall phones share the pinned horizontal journey; only its scale and
+    // movement distances change. The layout class is applied before anything is measured.
+    const horizontal = (compact) => {
+      section.classList.add('is-hscroll')
+      section.classList.toggle('is-compact', compact)
       const distance = () => Math.max(0, track.scrollWidth - window.innerWidth)
+      // Progress at which each panel is centred: used for snapping, the HUD and the buttons.
+      const measure = () => {
+        const d = distance() || 1
+        pointsRef.current = Array.from(track.children, (child) => gsap.utils.clamp(0, 1, (child.offsetLeft + child.offsetWidth / 2 - window.innerWidth / 2) / d))
+      }
       const slide = gsap.to(track, {
         x: () => -distance(),
         ease: 'none',
-        scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: () => `+=${distance()}`, pin: true, scrub: 0.7, invalidateOnRefresh: true },
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          end: () => `+=${distance() * (compact ? 1.15 : 1)}`,
+          pin: true,
+          scrub: compact ? 0.5 : 0.7,
+          invalidateOnRefresh: true,
+          onRefreshInit: measure,
+          snap: { snapTo: (value, self) => pointsRef.current[nearestIndex(pointsRef.current, self?.progress ?? value)] ?? value, inertia: false, duration: { min: 0.2, max: 0.55 }, delay: 0.1, ease: 'power2.out' },
+          onUpdate: (self) => {
+            section.style.setProperty('--cases-progress', self.progress.toFixed(3))
+            const next = nearestIndex(pointsRef.current, self.progress)
+            if (next !== panelRef.current) {
+              panelRef.current = next
+              setPanel(next)
+            }
+          },
+        },
       })
-      gsap.utils.toArray('.case-visual', sectionRef.current).forEach((visual) => {
-        gsap.fromTo(visual, { rotateY: 16, rotateX: 4, scale: 0.9 }, {
-          rotateY: -12, rotateX: -2, scale: 1, ease: 'none',
-          scrollTrigger: { trigger: visual.closest('.case'), containerAnimation: slide, start: 'left right', end: 'right left', scrub: true },
-        })
+      triggerRef.current = slide.scrollTrigger
+      measure()
+
+      const tilt = compact ? 0.5 : 1
+      gsap.utils.toArray('.case', section).forEach((card) => {
+        const sweep = { trigger: card, containerAnimation: slide, start: 'left right', end: 'right left', scrub: true }
+        gsap.fromTo(card.querySelector('.case-visual'),
+          { rotateY: 16 * tilt, rotateX: 4 * tilt, scale: 0.9, z: -60 * tilt },
+          { rotateY: -12 * tilt, rotateX: -2 * tilt, scale: 1, z: 0, ease: 'none', scrollTrigger: sweep })
+        // Copy arrives a beat after the visual, line by line, then holds while the card is centred.
+        gsap.fromTo(card.querySelectorAll('.case__copy > *'),
+          { x: 70 * tilt, opacity: 0 },
+          { x: 0, opacity: 1, stagger: 0.05, ease: 'power2.out', scrollTrigger: { trigger: card, containerAnimation: slide, start: 'left 85%', end: 'left 30%', scrub: true } })
       })
-      gsap.to('.cases__progress i', { scaleX: 1, ease: 'none', scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: () => `+=${distance()}`, scrub: true } })
-    })
+      return () => {
+        section.classList.remove('is-hscroll', 'is-compact')
+        triggerRef.current = null
+      }
+    }
+
+    // Short or landscape phones: a pinned card would not fit, so each file gets its own entrance.
+    const stacked = () => {
+      gsap.utils.toArray('.case', section).forEach((card) => {
+        gsap.timeline({ scrollTrigger: { trigger: card, start: 'top 80%', once: true } })
+          .fromTo(card.querySelector('.case-visual'), { rotateX: 18, y: 40, autoAlpha: 0 }, { rotateX: 0, y: 0, autoAlpha: 1, duration: 0.8, ease: 'power3.out' })
+          .fromTo(card.querySelectorAll('.case__copy > *'), { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.06, duration: 0.5 }, 0.2)
+      })
+    }
+
+    mm.add(DESKTOP_MOTION, () => horizontal(false))
+    mm.add(MOBILE_PORTRAIT, () => (roomForPinnedScene() ? horizontal(true) : stacked()))
+    mm.add(MOBILE_LANDSCAPE, stacked)
     return () => mm.revert()
   }, { scope: sectionRef })
 
+  const goToPanel = (index) => {
+    const st = triggerRef.current
+    const target = gsap.utils.clamp(1, projects.length, index)
+    if (!st) {
+      document.getElementById(`case-${projects[target - 1].number}`)?.scrollIntoView({ block: 'center' })
+      return
+    }
+    window.scrollTo({ top: st.start + (st.end - st.start) * (pointsRef.current[target] ?? 0), behavior: 'smooth' })
+  }
+
+  // Keyboard focus inside an off-screen card moves the journey to that card.
+  const followFocus = (index) => {
+    const st = triggerRef.current
+    sectionRef.current.scrollLeft = 0
+    if (!st || index === panelRef.current) return
+    window.scrollTo({ top: st.start + (st.end - st.start) * (pointsRef.current[index] ?? 0), behavior: 'auto' })
+  }
+
+  const current = panel >= 1 && panel <= projects.length ? projects[panel - 1] : null
+
   return (
     <section className="cases" id="work" ref={sectionRef} aria-labelledby="cases-title">
+      <div className="cases__hud" role="group" aria-label="Case file navigation">
+        <button type="button" onClick={() => goToPanel(panel - 1)} disabled={panel <= 1} aria-label="Previous case file"><ArrowLeft size={16} /></button>
+        <div className="cases__hud-info" aria-live="polite">
+          <span>{current ? `${current.number} / 0${projects.length}` : panel === 0 ? `00 / 0${projects.length}` : 'NEXT'}</span>
+          <strong>{current ? current.title : panel === 0 ? 'Case Files' : 'Your project'}</strong>
+        </div>
+        <button type="button" onClick={() => goToPanel(panel + 1)} disabled={panel >= projects.length} aria-label="Next case file"><ArrowRight size={16} /></button>
+      </div>
       <div className="cases__track">
         <header className="cases__intro">
           <p className="kicker">Chapter 03 — Selected work</p>
@@ -185,7 +273,7 @@ export function CaseFiles() {
           <span className="cases__hint" aria-hidden="true">Keep scrolling <ArrowRight size={14} /></span>
         </header>
         {projects.map((project, index) => (
-          <article className="case" key={project.number} aria-labelledby={`case-${project.number}`}>
+          <article className="case" key={project.number} aria-labelledby={`case-${project.number}`} onFocus={() => followFocus(index + 1)}>
             <CaseVisual project={project} />
             <div className="case__copy">
               <p className="kicker">{project.number} / 0{projects.length} — {project.kicker}</p>
@@ -229,17 +317,30 @@ function CapabilityArt({ type }) {
 export function Capabilities({ reducedMotion }) {
   const sectionRef = useRef(null)
   useGSAP(() => {
+    // The row in the middle of the screen is lit (a state, so it applies with reduced motion too).
+    gsap.utils.toArray('.cap', sectionRef.current).forEach((row) => {
+      ScrollTrigger.create({ trigger: row, start: 'top 50%', end: 'bottom 50%', toggleClass: 'is-active' })
+    })
     if (reducedMotion) return
-    gsap.utils.toArray('.cap').forEach((row) => {
-      gsap.timeline({ scrollTrigger: { trigger: row, start: 'top 78%', once: true } })
-        .fromTo(row.querySelector('.cap__title'), { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 0.9, ease: 'power3.inOut' })
+    gsap.utils.toArray('.cap', sectionRef.current).forEach((row, index) => {
+      // Rows swing up out of depth, alternating the side they hinge from.
+      gsap.timeline({ scrollTrigger: { trigger: row, start: 'top 82%', once: true } })
+        .fromTo(row, { rotateX: 14, rotateY: index % 2 ? -6 : 6, z: -120, autoAlpha: 0, transformPerspective: 1400, transformOrigin: index % 2 ? '100% 0%' : '0% 0%' }, { rotateX: 0, rotateY: 0, z: 0, autoAlpha: 1, duration: 0.9, ease: 'power3.out' })
+        .fromTo(row.querySelector('.cap__title'), { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 0.9, ease: 'power3.inOut' }, 0.15)
         .fromTo(row.querySelectorAll('.cap-art__draw'), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1.1, stagger: 0.08, ease: 'power2.out' }, 0.15)
         .fromTo(row.querySelectorAll('.cap__value, .cap__list li'), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.05 }, 0.35)
+      // Each drawing keeps turning slowly while its row crosses the screen, alternating direction.
+      gsap.fromTo(row.querySelector('.cap-art'), { y: 40, rotate: row.classList.contains('cap--flip') ? -8 : 8 }, {
+        y: -40, rotate: row.classList.contains('cap--flip') ? 6 : -6, ease: 'none',
+        scrollTrigger: { trigger: row, start: 'top bottom', end: 'bottom top', scrub: 0.8 },
+      })
+      gsap.fromTo(row.querySelector('.cap__num'), { y: 30 }, { y: -30, ease: 'none', scrollTrigger: { trigger: row, start: 'top bottom', end: 'bottom top', scrub: 0.8 } })
     })
   }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
 
   return (
-    <section className="caps" id="services" ref={sectionRef} aria-labelledby="caps-title">
+    <section className="caps zone" id="services" ref={sectionRef} aria-labelledby="caps-title">
+      <div className="zone__fallback zone__fallback--grid" aria-hidden="true" />
       <header className="caps__head">
         <p className="kicker">Chapter 05 — Capabilities</p>
         <h2 id="caps-title">What We <em>Build</em></h2>
@@ -258,6 +359,7 @@ export function Capabilities({ reducedMotion }) {
           </li>
         ))}
       </ol>
+      <div className="zone__handoff" aria-hidden="true" />
     </section>
   )
 }
@@ -266,22 +368,36 @@ export function Capabilities({ reducedMotion }) {
 
 const CODE_ROWS = [62, 38, 80, 54, 24, 70, 46]
 
+// Progress at which each layer is centred within the pinned sequence.
+const LAB_STOPS = labLayers.map((_, index) => (index + 0.5) / labLayers.length)
+
 export function Lab() {
   const sectionRef = useRef(null)
+  const triggerRef = useRef(null)
   const activeRef = useRef(0)
   const [active, setActive] = useState(0)
 
   useGSAP(() => {
+    const section = sectionRef.current
     const mm = gsap.matchMedia()
-    mm.add(DESKTOP_MOTION, () => {
-      const plates = gsap.utils.toArray('.lab-plate')
+    const plates = () => gsap.utils.toArray('.lab-plate', section)
+    // Gap per layer. The fully separated desktop stack scales with viewport height so its top
+    // plate never rises under the nav on shorter screens (re-evaluated on refresh).
+    const lift = (gap) => (index, _target, all) => `${(all.length - 1 - index) * (typeof gap === 'function' ? gap() : gap)}px`
+    const separated = () => Math.min(110, window.innerHeight * 0.085)
+
+    const pinned = (compact) => {
+      section.classList.add('is-pinned')
+      section.classList.toggle('is-compact', compact)
       const tl = gsap.timeline({
         scrollTrigger: {
-          trigger: sectionRef.current,
+          trigger: section,
           start: 'top top',
-          end: '+=180%',
+          end: compact ? '+=130%' : '+=160%',
           pin: true,
-          scrub: 0.6,
+          scrub: compact ? 0.4 : 0.6,
+          invalidateOnRefresh: true,
+          snap: { snapTo: [0, ...LAB_STOPS, 1], directional: false, inertia: false, duration: { min: 0.2, max: 0.5 }, delay: 0.1, ease: 'power2.out' },
           onUpdate: (self) => {
             const next = Math.min(labLayers.length - 1, Math.floor(self.progress * labLayers.length))
             if (next !== activeRef.current) {
@@ -291,12 +407,42 @@ export function Lab() {
           },
         },
       })
-      tl.fromTo(plates, { '--lift': (index) => `${(plates.length - 1 - index) * 18}px` }, { '--lift': (index) => `${(plates.length - 1 - index) * 110}px`, ease: 'power2.inOut', duration: 0.5 }, 0)
-        .fromTo('.lab__stack', { rotateZ: -45 }, { rotateZ: -30, ease: 'none', duration: 1 }, 0)
-        .fromTo('.lab-plate__code span', { scaleX: 0 }, { scaleX: 1, stagger: 0.004, duration: 0.3 }, 0.1)
-    })
+      triggerRef.current = tl.scrollTrigger
+      // The stack separates in the first third, then turns slowly as each layer is introduced.
+      tl.fromTo(plates(), { '--lift': lift(compact ? 8 : 18) }, { '--lift': lift(compact ? 40 : separated), ease: 'power2.inOut', duration: 0.35 }, 0)
+        .fromTo('.lab__stack', { '--tilt': '62deg', '--spin': '-48deg' }, { '--tilt': compact ? '56deg' : '52deg', '--spin': '-28deg', ease: 'none', duration: 1 }, 0)
+        .fromTo('.lab-plate__code span', { scaleX: 0 }, { scaleX: 1, stagger: 0.004, duration: 0.3 }, 0.08)
+        .fromTo('.lab__copy > *', { y: 30, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.03, duration: 0.12 }, 0)
+      return () => {
+        section.classList.remove('is-pinned', 'is-compact')
+        triggerRef.current = null
+      }
+    }
+
+    // Landscape phones: no pin. The stack separates as it passes through the viewport.
+    const passing = () => {
+      gsap.fromTo(plates(), { '--lift': lift(10) }, {
+        '--lift': lift(60), ease: 'none',
+        scrollTrigger: { trigger: '.lab__visual', start: 'top 85%', end: 'bottom 40%', scrub: 0.5 },
+      })
+    }
+
+    mm.add(DESKTOP_MOTION, () => pinned(false))
+    mm.add(MOBILE_PORTRAIT, () => (roomForPinnedScene() ? pinned(true) : passing()))
+    mm.add(MOBILE_LANDSCAPE, passing)
     return () => mm.revert()
   }, { scope: sectionRef })
+
+  // A tab tap moves the scroll position to that layer, so the stack, tabs and panel stay in step.
+  const selectLayer = (index) => {
+    const st = triggerRef.current
+    if (!st) {
+      activeRef.current = index
+      setActive(index)
+      return
+    }
+    window.scrollTo({ top: st.start + (st.end - st.start) * LAB_STOPS[index], behavior: 'smooth' })
+  }
 
   const layer = labLayers[active]
 
@@ -320,13 +466,13 @@ export function Lab() {
           <p className="lab__lede">Every product we build is a stack of layers that have to work together. Here is how we think about each one.</p>
           <div className="lab__tabs" role="tablist" aria-label="Architecture layers">
             {labLayers.map((item, index) => (
-              <button key={item.id} type="button" role="tab" id={`lab-tab-${item.id}`} aria-selected={index === active} aria-controls="lab-panel" tabIndex={index === active ? 0 : -1} onClick={() => setActive(index)}
+              <button key={item.id} type="button" role="tab" id={`lab-tab-${item.id}`} aria-selected={index === active} aria-controls="lab-panel" tabIndex={index === active ? 0 : -1} onClick={() => selectLayer(index)}
                 onKeyDown={(event) => {
                   if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
                   event.preventDefault()
                   const step = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : -1
                   const next = (index + step + labLayers.length) % labLayers.length
-                  setActive(next)
+                  selectLayer(next)
                   event.currentTarget.parentElement.children[next].focus()
                 }}
               >
@@ -352,15 +498,31 @@ const wordmarkStyle = Object.fromEntries(tools.map((tool) => [tool.name, tool.st
 export function Ecosystem({ reducedMotion }) {
   const sectionRef = useRef(null)
   useGSAP(() => {
+    const section = sectionRef.current
+    // The band being read lights its node on the spine (a state, kept with reduced motion).
+    gsap.utils.toArray('.eco__band', section).forEach((band) => {
+      ScrollTrigger.create({ trigger: band, start: 'top 50%', end: 'bottom 50%', toggleClass: 'is-active' })
+    })
     if (reducedMotion) return
-    gsap.to('.eco__orbit', { rotate: 120, ease: 'none', scrollTrigger: { trigger: sectionRef.current, start: 'top bottom', end: 'bottom top', scrub: 1 } })
-    gsap.utils.toArray('.eco__band').forEach((band, index) => {
-      gsap.fromTo(band.querySelector('.eco__marks'), { x: index % 2 ? 60 : -60 }, { x: 0, ease: 'none', scrollTrigger: { trigger: band, start: 'top bottom', end: 'top 55%', scrub: 0.6 } })
+    gsap.to('.eco__orbit', { rotate: 120, ease: 'none', scrollTrigger: { trigger: section, start: 'top bottom', end: 'bottom top', scrub: 1 } })
+    // The spine that connects the layers fills as the ecosystem is read.
+    gsap.fromTo('.eco__spine i', { scaleY: 0 }, { scaleY: 1, ease: 'none', scrollTrigger: { trigger: '.eco__bands', start: 'top 65%', end: 'bottom 55%', scrub: 0.6 } })
+    gsap.fromTo('.eco__core', { scale: 0.6, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, ease: 'none', scrollTrigger: { trigger: section, start: 'top 80%', end: 'top 20%', scrub: 0.8 } })
+    gsap.utils.toArray('.eco__band', section).forEach((band, index) => {
+      gsap.timeline({ scrollTrigger: { trigger: band, start: 'top 84%', once: true } })
+        .fromTo(band, { z: -140, rotateX: 18, autoAlpha: 0, transformPerspective: 1200 }, { z: 0, rotateX: 0, autoAlpha: 1, duration: 0.8, ease: 'power3.out' })
+        // Wordmark cards flip up like split-flap characters, one after another.
+        .fromTo(band.querySelectorAll('.wordmark'), { rotateX: -90, autoAlpha: 0, transformPerspective: 500 }, {
+          rotateX: 0, autoAlpha: 1, stagger: 0.08, duration: 0.6, ease: 'back.out(1.8)',
+        }, 0.2)
+      gsap.fromTo(band.querySelector('.eco__marks'), { x: index % 2 ? 50 : -50 }, { x: 0, ease: 'none', scrollTrigger: { trigger: band, start: 'top bottom', end: 'top 55%', scrub: 0.6 } })
     })
   }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
 
   return (
-    <section className="paper eco" id="technology" ref={sectionRef} aria-labelledby="eco-title">
+    <section className="eco zone" id="technology" ref={sectionRef} aria-labelledby="eco-title">
+      <div className="zone__fallback zone__fallback--constellation" aria-hidden="true" />
+      <div className="eco__core" aria-hidden="true" />
       <svg className="eco__orbit" viewBox="0 0 400 400" aria-hidden="true">
         <circle cx="200" cy="200" r="190" /><circle cx="200" cy="200" r="140" /><circle cx="200" cy="200" r="90" />
         <circle className="eco__planet" cx="200" cy="10" r="7" /><circle className="eco__planet" cx="340" cy="200" r="5" /><circle className="eco__planet" cx="200" cy="290" r="6" />
@@ -368,37 +530,60 @@ export function Ecosystem({ reducedMotion }) {
       <span className="showcase__stamp showcase__stamp--left" aria-hidden="true">CHOSEN<br />TO FIT<br />THE JOB</span>
       <span className="showcase__stamp showcase__stamp--right" aria-hidden="true">NOT<br />BY<br />HABIT</span>
       <p className="kicker">Chapter 07 — Technology ecosystem</p>
-      <h2 id="eco-title" className="reveal">A Showcase of Trusted Tools</h2>
+      <h2 id="eco-title" className="glow reveal">A Showcase of Trusted Tools</h2>
       <p className="showcase__lede reveal">A well-chosen toolbox, organised by the job each tool does. We pick what fits the product, not the trend.</p>
       <div className="eco__bands">
+        <span className="eco__spine" aria-hidden="true"><i /></span>
         {techGroups.map((group) => (
-          <div className="eco__band reveal" key={group.category}>
+          <div className="eco__band" key={group.category}>
+            <span className="eco__node" aria-hidden="true" />
             <div className="eco__label"><span>{group.category}</span><em>{group.title}</em></div>
             <ul className="eco__marks">{group.items.map((item) => <li key={item} className={`wordmark ${wordmarkStyle[item] || ''}`}>{item}</li>)}</ul>
             <p className="eco__role">{group.role}</p>
           </div>
         ))}
       </div>
+      <div className="zone__handoff" aria-hidden="true" />
     </section>
   )
 }
 
-/* ---------- F. How we work ---------- */
+/* ---------- F. How we work: a ring of stages that becomes a workflow drum ---------- */
 
-function TerminalState({ stage, index }) {
-  const filled = Math.round(((index + 1) / processStages.length) * 18)
+// Scroll choreography, as fractions of the pinned distance.
+const RING_END = 0.15 // the ring has fully folded into the drum
+const DRUM_START = 0.18 // stage 1 faces the viewer
+const DRUM_SPAN = 0.7 // stage 6 faces the viewer at DRUM_START + DRUM_SPAN
+const SETTLE_START = 0.92 // the drum settles back before the pin releases
+const STEP_DEG = 40 // angle between neighbouring stages on the drum
+const HEAD_TOP_SCALE = 0.58 // the heading's size once it has risen above the drum
+const LAST_STAGE = processStages.length - 1
+const STAGE_STOPS = processStages.map((_, index) => DRUM_START + (index / LAST_STAGE) * DRUM_SPAN)
+const D2R = Math.PI / 180
+
+const clamp01 = (value) => Math.min(1, Math.max(0, value))
+const smooth = (from, to, value) => {
+  const t = clamp01((value - from) / (to - from))
+  return t * t * (3 - 2 * t)
+}
+const mix = (a, b, t) => a + (b - a) * t
+
+function StageCard({ stage, index, active }) {
   return (
-    <div className="pt-state" key={index}>
-      <p className="dos__prompt">C:\DEVCORE&gt; RUN {stage.command}</p>
-      <p className="pt-state__title">&gt; STAGE 0{index + 1} OF 0{processStages.length} — {stage.title.toUpperCase()}</p>
-      <dl>
-        <div><dt>WHAT HAPPENS</dt><dd>{stage.happens}</dd></div>
-        <div><dt>YOU GET</dt><dd>{stage.youGet}</dd></div>
-        <div><dt>YOUR ROLE</dt><dd>{stage.yourRole}</dd></div>
-      </dl>
-      <p className="pt-state__bar" aria-hidden="true">[{'█'.repeat(filled)}{'░'.repeat(18 - filled)}] {index + 1}/{processStages.length}</p>
-      <p className="dos__prompt">C:\DEVCORE&gt; <span className="dos__cursor">_</span></p>
-    </div>
+    <article className={`drum-card ${active ? 'is-active' : ''}`} aria-labelledby={`stage-${index}`}>
+      <span className="drum-card__node" aria-hidden="true" />
+      <div className="drum-card__bar" aria-hidden="true"><span>STAGE_0{index + 1}</span><span>{stage.command}</span><i /><i /></div>
+      <div className="drum-card__body">
+        <p className="drum-card__prompt" aria-hidden="true">C:\DEVCORE&gt; RUN {stage.command}</p>
+        <h3 id={`stage-${index}`}><span className="drum-card__num">0{index + 1}</span> {stage.title}</h3>
+        <p className="drum-card__happens">{stage.happens}</p>
+        <dl>
+          <div><dt>You get</dt><dd>{stage.youGet}</dd></div>
+          <div><dt>Your role</dt><dd>{stage.yourRole}</dd></div>
+        </dl>
+      </div>
+      <span className="drum-card__shade" aria-hidden="true" />
+    </article>
   )
 }
 
@@ -409,112 +594,443 @@ export function ProcessTimeline() {
   const [active, setActive] = useState(0)
 
   useGSAP(() => {
+    const section = sectionRef.current
+    const cards = gsap.utils.toArray('.drum-card', section)
     const mm = gsap.matchMedia()
-    mm.add(DESKTOP_MOTION, () => {
-      triggerRef.current = ScrollTrigger.create({
-        trigger: sectionRef.current,
-        start: 'top top',
-        end: `+=${processStages.length * 55}%`,
-        pin: true,
-        onUpdate: (self) => {
-          sectionRef.current.style.setProperty('--pt-progress', self.progress.toFixed(3))
-          const next = Math.min(processStages.length - 1, Math.floor(self.progress * processStages.length))
-          if (next !== activeRef.current) {
-            activeRef.current = next
-            setActive(next)
-          }
+    const activate = (next) => {
+      if (next === activeRef.current) return
+      activeRef.current = next
+      setActive(next)
+    }
+
+    // Phones, tablets and short screens: the same cards in normal document flow. Each tilts
+    // up out of depth as it arrives, holds flat while it is read, and leans away as it leaves.
+    const flow = () => {
+      cards.forEach((card, index) => {
+        gsap.timeline({ scrollTrigger: { trigger: card, start: 'top bottom', end: 'bottom top', scrub: 0.6 } })
+          .fromTo(card, { rotateX: 16, z: -90, opacity: 0.35, transformPerspective: 1100, transformOrigin: '50% 50%' }, { rotateX: 0, z: 0, opacity: 1, ease: 'power2.out', duration: 0.36 })
+          .to(card, { rotateX: 0, duration: 0.28 })
+          .to(card, { rotateX: -10, z: -50, opacity: 0.6, ease: 'power1.in', duration: 0.36 })
+        ScrollTrigger.create({ trigger: card, start: 'top 50%', end: 'bottom 50%', onToggle: (self) => { if (self.isActive) activate(index) } })
+      })
+      ScrollTrigger.create({
+        trigger: section.querySelector('.drum'),
+        start: 'top 60%',
+        end: 'bottom 60%',
+        onUpdate: (self) => section.style.setProperty('--pt-progress', self.progress.toFixed(3)),
+      })
+    }
+
+    // Tall desktops: the pinned ring → drum sequence. One scrubbed progress value drives every
+    // transform; React only hears about it when the active stage changes.
+    const drum = () => {
+      section.classList.add('is-drum')
+      const head = section.querySelector('.pt__head')
+      const index = section.querySelector('.pt__index')
+      const halo = section.querySelector('.drum__halo')
+      const geo = {}
+
+      const measure = () => {
+        const stageW = section.clientWidth
+        const stageH = section.clientHeight
+        const navH = document.querySelector('.nav')?.offsetHeight || 76
+        const headH = head.offsetHeight
+        const drumTop = navH + 14 + headH * HEAD_TOP_SCALE + 10
+        const gutter = parseFloat(getComputedStyle(section).getPropertyValue('--gutter')) || 0.05 * stageW
+        // The drum layer spans the whole stage (so the ring is never clipped); cards are anchored
+        // at the centre of the area right of the stage index and below the risen heading.
+        const areaLeft = gutter + 300
+        const areaW = stageW - areaLeft - gutter
+        const areaH = stageH - drumTop - stageH * 0.03
+        const anchorX = areaLeft + areaW / 2
+        const anchorY = drumTop + areaH / 2
+        section.style.setProperty('--drum-top', `${Math.round(drumTop)}px`)
+        section.style.setProperty('--drum-cx', `${Math.round(anchorX)}px`)
+        section.style.setProperty('--drum-cy', `${Math.round(anchorY)}px`)
+        section.style.setProperty('--drum-card-w', `${Math.round(Math.min(640, areaW - 20))}px`)
+        // Every card shares the tallest card's height so the drum is a true cylinder.
+        section.style.removeProperty('--drum-card-h')
+        const cardH = Math.max(...cards.map((card) => card.offsetHeight))
+        const cardW = cards[0].offsetWidth
+        section.style.setProperty('--drum-card-h', `${cardH}px`)
+        geo.cx = anchorX - stageW / 2
+        geo.cy = anchorY - stageH / 2
+        geo.fitScale = Math.min(1, (areaH - 16) / cardH)
+        // Radius chosen so neighbouring cards meet just clear of the active card's edges.
+        geo.radius = (cardH / 2 + 28) / Math.tan((STEP_DEG / 2) * D2R)
+        geo.headTopY = -stageH / 2 + navH + 14 + (headH * HEAD_TOP_SCALE) / 2
+        geo.rx = Math.min(stageW * 0.36, 560)
+        geo.ry = Math.min(stageH * 0.31, 290)
+        geo.ringScale = Math.min(0.42, (geo.ry * 0.72) / cardH, (geo.rx * 0.62) / cardW)
+        geo.ring = processStages.map((_, i) => {
+          const phi = (-120 + i * 60) * D2R
+          return { x: Math.cos(phi) * geo.rx, y: Math.sin(phi) * geo.ry, phi }
+        })
+        halo.setAttribute('viewBox', `${-stageW / 2} ${-stageH / 2} ${stageW} ${stageH}`)
+        halo.querySelector('polygon').setAttribute('points', geo.ring.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '))
+        // Faint orbits behind the heading and a glowing marker at each stage's place on the ring.
+        const [outer, inner] = halo.querySelectorAll('.drum__orbit')
+        outer.setAttribute('r', (geo.ry * 0.82).toFixed(1))
+        inner.setAttribute('r', (geo.ry * 0.56).toFixed(1))
+        halo.querySelectorAll('.drum__marker').forEach((marker, i) => {
+          marker.setAttribute('cx', geo.ring[i].x.toFixed(1))
+          marker.setAttribute('cy', geo.ring[i].y.toFixed(1))
+        })
+        geo.fits = geo.fitScale > 0.86
+      }
+
+      const render = (p) => {
+        const fold = smooth(0.02, RING_END, p)
+        const s = clamp01((p - DRUM_START) / DRUM_SPAN) * LAST_STAGE
+        const settle = smooth(SETTLE_START, 1, p)
+        cards.forEach((card, i) => {
+          // Cards fold out of the ring one after another, not all at once.
+          const t = clamp01(fold * 1.45 - i * 0.08)
+          const ring = geo.ring[i]
+          const angle = (i - s) * STEP_DEG
+          const away = Math.abs(angle)
+          const x = mix(ring.x - geo.cx, 0, t)
+          const y = mix(ring.y - geo.cy, geo.radius * Math.sin(angle * D2R), t)
+          const z = mix(-40, geo.radius * Math.cos(angle * D2R) - geo.radius - settle * 180, t)
+          const rotateX = mix(Math.sin(ring.phi) * -10, -angle - settle * 6, t)
+          const rotateY = mix(Math.cos(ring.phi) * 16, 0, t)
+          const scale = mix(geo.ringScale, geo.fitScale * (1 - settle * 0.06), t)
+          const drumOpacity = away > 92 ? 0 : clamp01(1 - (away - STEP_DEG * 0.6) / (STEP_DEG * 1.5))
+          const opacity = mix(0.94, drumOpacity * (1 - settle * (i === LAST_STAGE ? 0.1 : 0.4)), t)
+          card.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, ${z.toFixed(1)}px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale(${scale.toFixed(3)})`
+          card.style.opacity = opacity.toFixed(3)
+          card.style.zIndex = String(Math.round(200 - mix(0, away, t)))
+          card.style.setProperty('--shade', mix(0.15, clamp01(away / STEP_DEG) * 0.72, t).toFixed(3))
+          card.style.visibility = opacity < 0.02 ? 'hidden' : 'visible'
+        })
+        head.style.transform = `translate(-50%, -50%) translate3d(0, ${mix(0, geo.headTopY, fold).toFixed(1)}px, 0) scale(${mix(1, HEAD_TOP_SCALE, fold).toFixed(3)})`
+        index.style.opacity = fold.toFixed(3)
+        index.style.transform = `translateX(${mix(-40, 0, fold).toFixed(1)}px)`
+        index.style.visibility = fold < 0.02 ? 'hidden' : 'visible'
+        section.style.setProperty('--ring', (1 - fold).toFixed(3))
+        section.style.setProperty('--pt-progress', (s / LAST_STAGE).toFixed(3))
+        activate(Math.round(s))
+      }
+
+      measure()
+      // Guard: if the stage cannot fit at a comfortable size, use the normal-flow sequence.
+      if (!geo.fits) {
+        section.classList.remove('is-drum')
+        section.style.removeProperty('--drum-card-h')
+        flow()
+        return undefined
+      }
+
+      const proxy = { p: 0 }
+      const tween = gsap.to(proxy, {
+        p: 1,
+        ease: 'none',
+        onUpdate: () => render(proxy.p),
+        scrollTrigger: {
+          trigger: section,
+          start: 'top top',
+          // Ring fold + ~45vh per stage + a short settle: long enough to read, never a trap.
+          end: `+=${processStages.length * 45 + 80}%`,
+          pin: true,
+          scrub: 0.55,
+          invalidateOnRefresh: true,
+          snap: { snapTo: [0, ...STAGE_STOPS, 1], directional: false, inertia: false, duration: { min: 0.25, max: 0.6 }, delay: 0.12, ease: 'power2.inOut' },
+          onRefresh: () => {
+            measure()
+            render(proxy.p)
+          },
         },
       })
-      return () => { triggerRef.current = null }
-    })
+      triggerRef.current = tween.scrollTrigger
+      render(0)
+
+      return () => {
+        triggerRef.current = null
+        section.classList.remove('is-drum')
+        ;['--drum-top', '--drum-cx', '--drum-cy', '--drum-card-w', '--drum-card-h', '--ring', '--pt-progress'].forEach((name) => section.style.removeProperty(name))
+        ;[...cards, head, index].forEach((element) => {
+          element.style.removeProperty('transform')
+          element.style.removeProperty('opacity')
+          element.style.removeProperty('visibility')
+          element.style.removeProperty('z-index')
+          element.style.removeProperty('--shade')
+        })
+      }
+    }
+
+    mm.add(PROCESS_PINNED, drum)
+    mm.add(PROCESS_FLOW, flow)
     return () => mm.revert()
   }, { scope: sectionRef })
 
+  // Stage indicators scroll the sequence to that stage, so card, text and path move together.
   const select = (index) => {
     const st = triggerRef.current
-    if (!st) {
-      setActive(index)
+    if (st) {
+      window.scrollTo({ top: st.start + (st.end - st.start) * STAGE_STOPS[index], behavior: 'smooth' })
       return
     }
-    window.scrollTo({ top: st.start + (st.end - st.start) * ((index + 0.5) / processStages.length), behavior: 'smooth' })
+    sectionRef.current.querySelectorAll('.drum-card')[index]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }
+
+  const onIndexKey = (event, index) => {
+    const keys = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1, Home: -index, End: LAST_STAGE - index }
+    if (!(event.key in keys)) return
+    event.preventDefault()
+    const next = Math.min(LAST_STAGE, Math.max(0, index + keys[event.key]))
+    select(next)
+    event.currentTarget.closest('ol').querySelectorAll('button')[next]?.focus()
   }
 
   return (
-    <section className="process pt" id="process" ref={sectionRef} aria-labelledby="process-title">
+    <section className="process pt zone" id="process" ref={sectionRef} aria-labelledby="process-title">
+      <div className="pt__floor" aria-hidden="true" />
+      <svg className="drum__halo" aria-hidden="true">
+        <circle className="drum__orbit" cx="0" cy="0" />
+        <circle className="drum__orbit drum__orbit--inner" cx="0" cy="0" />
+        <polygon />
+        {processStages.map((stage) => <circle key={stage.title} className="drum__marker" r="4" />)}
+      </svg>
       <header className="pt__head">
         <p className="kicker">Chapter 08 — How we work</p>
         <h2 id="process-title" className="glow">How We Work</h2>
         <p className="process__lede">Six stages, in order, every time. Written for the people we build with, not just for developers.</p>
       </header>
-      <div className="pt__grid">
-        <ol className="pt__list">
+      <nav className="pt__index" aria-label="Workflow stages">
+        <span className="pt__rail" aria-hidden="true"><i /></span>
+        <ol>
           {processStages.map((stage, index) => (
             <li key={stage.title} className={index === active ? 'is-active' : index < active ? 'is-done' : ''}>
-              <button type="button" onClick={() => select(index)} aria-current={index === active ? 'step' : undefined}>
+              <button type="button" onClick={() => select(index)} onKeyDown={(event) => onIndexKey(event, index)} aria-current={index === active ? 'step' : undefined}>
+                <span className="pt__node" aria-hidden="true" />
                 <span className="pt__num">0{index + 1}</span>
                 <span className="pt__title">{stage.title}</span>
               </button>
-              <div className="pt__mobile-detail">
-                <p>{stage.happens}</p>
-                <p><b>You get:</b> {stage.youGet}</p>
-                <p><b>Your role:</b> {stage.yourRole}</p>
-              </div>
             </li>
           ))}
-          <span className="pt__rail" aria-hidden="true"><i /></span>
         </ol>
-        <div className="dos pt__terminal">
-          <div className="dos__bar"><span>C:\DEVCORE\PROCESS.EXE</span><i /><i /><i /></div>
-          <div className="dos__body" aria-live="polite"><TerminalState stage={processStages[active]} index={active} /></div>
-        </div>
+      </nav>
+      <div className="drum">
+        {processStages.map((stage, index) => <StageCard key={stage.title} stage={stage} index={index} active={index === active} />)}
       </div>
+      <p className="visually-hidden" aria-live="polite">Stage {active + 1} of {processStages.length}: {processStages[active].title}</p>
     </section>
   )
 }
 
 /* ---------- G. Quality & reliability ---------- */
 
+// Copy that belongs to The Fine Print itself (kept word for word from the original chart).
+const FINE_PRINT_INTRO = 'Six commitments we hold ourselves to on every project. They are working principles, not certifications.'
+const FINE_PRINT_FOOTNOTE = '* Principles describe how we work. They are not claims of formal certification or regulatory compliance.'
+const TYPING_MS = 520
+
+// Six-segment calibration ring: each commitment lights its segment once it has been inspected.
+function VerificationRing({ inspected }) {
+  const segments = qualityPrinciples.map((_, index) => {
+    const from = (index * 60 - 90 + 3) * (Math.PI / 180)
+    const to = ((index + 1) * 60 - 90 - 3) * (Math.PI / 180)
+    const r = 92
+    return `M ${(100 + r * Math.cos(from)).toFixed(2)} ${(100 + r * Math.sin(from)).toFixed(2)} A ${r} ${r} 0 0 1 ${(100 + r * Math.cos(to)).toFixed(2)} ${(100 + r * Math.sin(to)).toFixed(2)}`
+  })
+  return (
+    <div className="fp-ring" aria-hidden="true">
+      <svg viewBox="0 0 200 200">
+        {Array.from({ length: 60 }, (_, index) => {
+          const a = (index / 60) * Math.PI * 2
+          const inner = index % 5 === 0 ? 72 : 76
+          return <line key={index} className="fp-ring__tick" x1={100 + Math.cos(a) * inner} y1={100 + Math.sin(a) * inner} x2={100 + Math.cos(a) * 80} y2={100 + Math.sin(a) * 80} />
+        })}
+        <circle className="fp-ring__track" cx="100" cy="100" r="92" />
+        {segments.map((d, index) => <path key={index} className={`fp-ring__seg ${inspected.has(index) ? 'is-on' : ''}`} d={d} />)}
+        <circle className="fp-ring__core" cx="100" cy="100" r="52" />
+      </svg>
+      <div className="fp-ring__label"><strong>{inspected.size}/{qualityPrinciples.length}</strong><span>INSPECTED</span></div>
+    </div>
+  )
+}
+
 export function Quality({ reducedMotion }) {
   const sectionRef = useRef(null)
+  const panelRef = useRef(null)
+  const logRef = useRef(null)
+  // The conversation is just the list of commitments the visitor has asked about, in order.
+  const [asked, setAsked] = useState([])
+  const [typing, setTyping] = useState(false)
+  const inspected = new Set(asked)
+  const complete = inspected.size === qualityPrinciples.length
+
   useGSAP(() => {
     if (reducedMotion) return
-    ScrollTrigger.batch('.spec-row:not(.spec-row--head)', {
-      start: 'top 85%',
-      once: true,
-      onEnter: (rows) => gsap.timeline()
-        .fromTo(rows, { autoAlpha: 0, x: -24 }, { autoAlpha: 1, x: 0, duration: 0.45, stagger: 0.09, ease: 'power2.out' })
-        .fromTo(rows.map((row) => row.querySelector('.spec-row__tick path')), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.35, stagger: 0.09 }, 0.2),
+    const section = sectionRef.current
+    // Entrance: the heading first, then the calibration ring, then the terminal rises into place.
+    gsap.timeline({ scrollTrigger: { trigger: section, start: 'top 75%', once: true } })
+      .fromTo('.fp-head > *', { y: 24, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.08, duration: 0.6, ease: 'power3.out' })
+      .fromTo('.fp-ring', { scale: 0.85, rotate: -30, autoAlpha: 0 }, { scale: 1, rotate: 0, autoAlpha: 1, duration: 0.9, ease: 'power3.out' }, 0.15)
+      .fromTo('.fp-terminal', { y: 50, rotateX: 10, z: -80, autoAlpha: 0, transformPerspective: 1400, transformOrigin: '50% 0%' }, { y: 0, rotateX: 0, z: 0, autoAlpha: 1, duration: 0.9, ease: 'power3.out' }, 0.25)
+    // Hand-off: the stage recedes into the dark as the Assembler takes over.
+    gsap.fromTo('.fp-stage', { z: 0, rotateX: 0, autoAlpha: 1, transformPerspective: 1600, transformOrigin: '50% 100%' }, {
+      z: -160, rotateX: 8, autoAlpha: 0.3, ease: 'none',
+      scrollTrigger: { trigger: section, start: 'bottom 80%', end: 'bottom top', scrub: 0.8 },
     })
-    gsap.fromTo('.quality .spec-stamp', { scale: 1.6, autoAlpha: 0, rotate: -30 }, { scale: 1, autoAlpha: 0.85, rotate: -12, duration: 0.5, ease: 'back.out(2)', scrollTrigger: { trigger: '.spec-sheet', start: 'bottom 85%', once: true } })
   }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
 
+  // Spotlight: a soft light follows the pointer across the terminal, eased so it never jitters.
+  // Scoped to the panel; skipped on touch screens and with reduced motion.
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel || reducedMotion || !window.matchMedia('(pointer: fine)').matches) return undefined
+    const target = { x: 0.5, y: 0.2 }
+    const current = { ...target }
+    let frame = 0
+    const step = () => {
+      current.x += (target.x - current.x) * 0.12
+      current.y += (target.y - current.y) * 0.12
+      panel.style.setProperty('--spot-x', `${(current.x * 100).toFixed(2)}%`)
+      panel.style.setProperty('--spot-y', `${(current.y * 100).toFixed(2)}%`)
+      frame = Math.abs(target.x - current.x) + Math.abs(target.y - current.y) > 0.001 ? window.requestAnimationFrame(step) : 0
+    }
+    const move = (event) => {
+      const rect = panel.getBoundingClientRect()
+      target.x = (event.clientX - rect.left) / rect.width
+      target.y = (event.clientY - rect.top) / rect.height
+      panel.style.setProperty('--spot-o', '1')
+      if (!frame) frame = window.requestAnimationFrame(step)
+    }
+    const leave = () => panel.style.setProperty('--spot-o', '0')
+    panel.addEventListener('pointermove', move)
+    panel.addEventListener('pointerleave', leave)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      panel.removeEventListener('pointermove', move)
+      panel.removeEventListener('pointerleave', leave)
+    }
+  }, [reducedMotion])
+
+  // New messages scroll the log, never the page, and never move keyboard focus.
+  useEffect(() => {
+    const log = logRef.current
+    if (log) log.scrollTo({ top: log.scrollHeight, behavior: reducedMotion ? 'auto' : 'smooth' })
+  }, [asked, typing, reducedMotion])
+
+  // The typing indicator re-arms whenever it is shown, so it can never be left stuck on.
+  useEffect(() => {
+    if (!typing) return undefined
+    const timer = window.setTimeout(() => setTyping(false), TYPING_MS)
+    return () => window.clearTimeout(timer)
+  }, [typing, asked.length])
+
+  const ask = (index) => {
+    if (typing) return
+    setAsked((list) => [...list, index])
+    if (!reducedMotion) setTyping(true)
+  }
+  const nextIndex = qualityPrinciples.findIndex((_, index) => !inspected.has(index))
+  const back = () => {
+    if (asked.length === 0) return
+    setTyping(false)
+    setAsked((list) => list.slice(0, -1))
+  }
+  const reset = () => {
+    setTyping(false)
+    setAsked([])
+  }
+
   return (
-    <section className="paper quality" id="quality" ref={sectionRef} aria-labelledby="quality-title">
-      <div className="spec-sheet">
-        <header className="spec-sheet__head">
-          <p className="kicker">Chapter 09 — Quality &amp; reliability</p>
-          <h2 id="quality-title">The Fine Print</h2>
-          <p>Six commitments we hold ourselves to on every project. They are working principles, not certifications.</p>
-        </header>
+    <section className="quality zone" id="quality" ref={sectionRef} aria-labelledby="quality-title">
+      <div className="zone__fallback zone__fallback--rings" aria-hidden="true" />
+      <div className="fp-stage">
+        <div className="fp-side">
+          <header className="fp-head">
+            <p className="kicker">Chapter 09 — Quality &amp; reliability</p>
+            <h2 id="quality-title" className="glow">The Fine Print</h2>
+            <p className="fp-head__intro">{FINE_PRINT_INTRO}</p>
+            <p className="fp-status" aria-hidden="true"><i /> QA TERMINAL · READY</p>
+          </header>
+          <VerificationRing inspected={inspected} />
+        </div>
+
+        <div className="fp-terminal" ref={panelRef} role="region" aria-label="The Fine Print terminal">
+          <span className="fp-terminal__spot" aria-hidden="true" />
+          <div className="fp-terminal__bar">
+            <LogoMark size={18} />
+            <span>DEVCORE · QA TERMINAL</span>
+            <span className="fp-terminal__state"><i aria-hidden="true" /> ready</span>
+          </div>
+          <div className="fp-progress" aria-hidden="true"><i style={{ transform: `scaleX(${inspected.size / qualityPrinciples.length})` }} /></div>
+          <ol className="fp-log" ref={logRef} role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation">
+            <li className="fp-msg fp-msg--devcore"><span className="fp-msg__who">DEVCORE</span><p>Before we build anything, here is the fine print.</p></li>
+            <li className="fp-msg fp-msg--devcore"><span className="fp-msg__who">DEVCORE</span><p>{FINE_PRINT_INTRO}</p><p className="fp-msg__hint">Pick one to inspect, or step through them in order.</p></li>
+            {asked.map((index, turn) => {
+              const item = qualityPrinciples[index]
+              const pending = typing && turn === asked.length - 1
+              return (
+                <Fragment key={turn}>
+                  <li className="fp-msg fp-msg--visitor"><span className="fp-msg__who">YOU</span><p>Tell me about {item.title.toLowerCase()}.</p></li>
+                  {pending ? (
+                    <li className="fp-msg fp-msg--devcore fp-msg--typing" aria-hidden="true"><span className="fp-msg__who">DEVCORE</span><span className="fp-dots"><i /><i /><i /></span></li>
+                  ) : (
+                    <li className="fp-msg fp-msg--devcore fp-msg--answer">
+                      <span className="fp-msg__who">DEVCORE · {String(index + 1).padStart(2, '0')}/{String(qualityPrinciples.length).padStart(2, '0')}</span>
+                      <h3>{item.title}</h3>
+                      <dl>
+                        <div><dt>What it means for you</dt><dd>{item.means}</dd></div>
+                        <div><dt>How we practise it</dt><dd>{item.practice}</dd></div>
+                      </dl>
+                      <span className="fp-msg__logged" aria-hidden="true">✓ Logged</span>
+                    </li>
+                  )}
+                </Fragment>
+              )
+            })}
+            {complete && !typing && (
+              <li className="fp-msg fp-msg--devcore fp-msg--close">
+                <span className="fp-msg__who">DEVCORE</span>
+                <p>That&rsquo;s all six. {FINE_PRINT_FOOTNOTE}</p>
+                <a className="button-cream" href="#contact">Start a project <ArrowRight size={15} /></a>
+              </li>
+            )}
+          </ol>
+          <div className="fp-input">
+            <div className="fp-chips" role="group" aria-label="Choose a commitment to inspect">
+              {qualityPrinciples.map((item, index) => (
+                <button key={item.title} type="button" className={`fp-chip ${inspected.has(index) ? 'is-done' : ''}`} onClick={() => ask(index)} aria-disabled={typing}
+                  aria-label={inspected.has(index) ? `${item.title} (inspected)` : item.title}>
+                  <span aria-hidden="true">{inspected.has(index) ? '✓' : String(index + 1).padStart(2, '0')}</span>{item.title}
+                </button>
+              ))}
+            </div>
+            {/* aria-disabled rather than disabled, and one primary button whose job changes,
+                so keyboard focus is never dropped while DevCore "types" or the flow completes. */}
+            <div className="fp-controls">
+              <button type="button" className="fp-ghost" onClick={back} aria-disabled={asked.length === 0}><ArrowLeft size={15} /> Back</button>
+              <button type="button" className={complete ? 'fp-ghost' : 'fp-send'} onClick={complete ? reset : () => ask(nextIndex)} aria-disabled={typing}>
+                {complete ? 'Start over' : <>{asked.length === 0 ? 'Step through' : 'Next'} <ArrowRight size={15} /></>}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <details className="fp-all">
+        <summary>View the complete checklist</summary>
         <div className="spec-table" role="table" aria-label="Engineering principles">
           <div className="spec-row spec-row--head" role="row">
-            <span role="columnheader"><span className="visually-hidden">Checked</span></span>
             <span role="columnheader">Principle</span>
             <span role="columnheader">What it means for you</span>
             <span role="columnheader">How we practise it</span>
           </div>
           {qualityPrinciples.map((item) => (
             <div className="spec-row" role="row" key={item.title}>
-              <span role="cell"><svg className="spec-row__tick" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" /><path d="m6 12 4 4 8-9" pathLength="1" /></svg></span>
               <strong role="cell">{item.title}</strong>
               <span role="cell">{item.means}</span>
               <span role="cell">{item.practice}</span>
             </div>
           ))}
         </div>
-        <span className="spec-stamp" aria-hidden="true">OUR<br />STANDARD</span>
-        <p className="spec-sheet__foot">* Principles describe how we work. They are not claims of formal certification or regulatory compliance.</p>
-      </div>
+        <p className="fp-all__foot">{FINE_PRINT_FOOTNOTE}</p>
+      </details>
+      <div className="zone__handoff zone__handoff--assembler" aria-hidden="true" />
     </section>
   )
 }

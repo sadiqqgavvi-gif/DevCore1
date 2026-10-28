@@ -129,7 +129,7 @@ export default function PreludeScene({ active, progressRef, reducedMotion }) {
   return (
     <Canvas
       frameloop={active ? 'always' : 'never'}
-      dpr={[1, 1.5]}
+      dpr={[1, window.innerWidth < 760 ? 1.25 : 1.5]}
       camera={{ position: [0, 1.7, 11], fov: 44, near: 0.1, far: 80 }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
     >

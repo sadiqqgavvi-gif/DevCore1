@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useReducedMotion } from '../hooks/useReducedMotion.js'
 import { requestScrollRefresh, ScrollTrigger } from '../lib/gsap.js'
+import AmbientBackdrop from './AmbientBackdrop.jsx'
 import { alreadyBooted } from './boot.js'
 import { chapters } from './data.js'
 import { Assembler, Capabilities, CaseFiles, Ecosystem, Lab, Prelude, ProcessTimeline, Quality } from './RetroChapters.jsx'
 import { BootScreen, ChapterIndicator, CrtOverlay, Navigation, Toast } from './RetroChrome.jsx'
-import { AboutZoom, Contact, Convinced, Footer, Golden, Hero, Story } from './RetroSections.jsx'
+import { AboutZoom, Contact, Convinced, Footer, Hero, Story } from './RetroSections.jsx'
+import SkylineReel from './SkylineReel.jsx'
 import './retro.css'
 import './retro-chapters.css'
+import './retro-depth.css'
+import './skyline.css'
 
 const TRACKED_SECTIONS = chapters.map(([id]) => id)
 
@@ -115,9 +119,10 @@ export default function RetroApp() {
         <Quality reducedMotion={reducedMotion} />
         <Assembler reducedMotion={reducedMotion} />
         <Convinced reducedMotion={reducedMotion} />
-        <Golden reducedMotion={reducedMotion} />
-        <Contact />
+        <SkylineReel reducedMotion={reducedMotion} />
+        <Contact reducedMotion={reducedMotion} />
       </main>
+      <AmbientBackdrop reducedMotion={reducedMotion} />
       <Footer />
       <Toast />
       <CrtOverlay />

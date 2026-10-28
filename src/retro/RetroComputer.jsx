@@ -6,6 +6,92 @@ const BEIGE = '#d9cdb5'
 const BEIGE_DARK = '#b8aa90'
 const SCREEN_W = 1024
 const SCREEN_H = 768
+const SCREEN_FPS = 30
+
+/* ---------- Base unit dimensions (one source of truth for body and keyboard) ---------- */
+
+const BASE_W = 3.4
+const BEVEL = 0.03
+// Side profile, in base-local z (front is +z) and y.
+const PROFILE = { front: 1.45, back: -1.2, frontH: 0.2, backH: 0.5, breakZ: -0.2 }
+const SLOPE_ANGLE = Math.atan2(PROFILE.backH - PROFILE.frontH, PROFILE.front - PROFILE.breakZ)
+const SLOPE_LENGTH = Math.hypot(PROFILE.backH - PROFILE.frontH, PROFILE.front - PROFILE.breakZ)
+const SLOPE_CENTER = {
+  z: (PROFILE.front + PROFILE.breakZ) / 2,
+  y: (PROFILE.frontH + PROFILE.backH) / 2 + BEVEL,
+}
+const BASE_DEPTH = PROFILE.front - PROFILE.back
+
+/* ---------- Keyboard layout, in key units (u) ---------- */
+
+// Each row lists key widths in u. 'm' = modifier colour, 'a' = accent, default = alpha key.
+const MAIN_ROWS = [
+  [[1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [2, 'm']],
+  [[1.5, 'm'], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1.5, 'm']],
+  [[1.75, 'm'], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [2.25, 'a']],
+  [[2.25, 'm'], [1], [1], [1], [1], [1], [1], [1], [1], [1], [1], [2.75, 'm']],
+  [[1.25, 'm'], [1.25, 'm'], [1.25, 'm'], [6.25], [1.25, 'm'], [1.25, 'm'], [1.25, 'm'], [1.25, 'm']],
+]
+const NUMPAD_ROWS = [
+  [[1, 'm'], [1, 'm'], [1, 'm'], [1, 'm']],
+  [[1], [1], [1], [1, 'm']],
+  [[1], [1], [1], [1, 'm']],
+  [[1], [1], [1], [1, 'a']],
+  [[2], [1], [1, 'm']],
+]
+const FUNCTION_ROW = Array.from({ length: 12 }, () => [1, 'f'])
+const MAIN_WIDTH_U = 15
+const NUMPAD_WIDTH_U = 4
+const NUMPAD_GAP_U = 0.5
+const KEYBOARD_MARGIN = 0.22
+const KEY_U = (BASE_W - KEYBOARD_MARGIN * 2) / (MAIN_WIDTH_U + NUMPAD_GAP_U + NUMPAD_WIDTH_U)
+const KEY_GAP = KEY_U * 0.14
+const KEY_HEIGHT = KEY_U * 0.42
+const FN_DEPTH_U = 0.7
+const KEY_COLORS = { alpha: '#2c2622', m: '#8b8071', a: '#e0794a', f: '#5d544b' }
+
+function buildKeyLayout() {
+  const keys = []
+  const rowsDepthU = FN_DEPTH_U + 0.25 + MAIN_ROWS.length
+  // Centre the keyboard on the slope; rows run from the back (-z) to the front (+z).
+  const startZ = -(rowsDepthU * KEY_U) / 2
+  const left = -(BASE_W / 2) + KEYBOARD_MARGIN
+
+  const placeRow = (row, originX, z, depthU) => {
+    let cursor = originX
+    row.forEach(([width, kind]) => {
+      keys.push({
+        x: cursor + (width * KEY_U) / 2,
+        z: z + (depthU * KEY_U) / 2,
+        w: width * KEY_U - KEY_GAP,
+        d: depthU * KEY_U - KEY_GAP,
+        kind: kind || 'alpha',
+      })
+      cursor += width * KEY_U
+    })
+  }
+
+  // Function row: 12 keys in three groups of four, like the machines it nods to.
+  FUNCTION_ROW.forEach((key, index) => {
+    const group = Math.floor(index / 4)
+    keys.push({
+      x: left + (index + group * 0.5 + 0.5) * KEY_U,
+      z: startZ + (FN_DEPTH_U * KEY_U) / 2,
+      w: KEY_U - KEY_GAP,
+      d: FN_DEPTH_U * KEY_U - KEY_GAP,
+      kind: 'f',
+    })
+  })
+
+  const mainZ = startZ + (FN_DEPTH_U + 0.25) * KEY_U
+  MAIN_ROWS.forEach((row, index) => placeRow(row, left, mainZ + index * KEY_U, 1))
+  const numpadLeft = left + (MAIN_WIDTH_U + NUMPAD_GAP_U) * KEY_U
+  NUMPAD_ROWS.forEach((row, index) => placeRow(row, numpadLeft, mainZ + index * KEY_U, 1))
+
+  return { keys, well: { w: BASE_W - KEYBOARD_MARGIN * 2 + KEY_U * 0.5, d: rowsDepthU * KEY_U + KEY_U * 0.5 } }
+}
+
+/* ---------- Screen painting: static layers cached, animated parts drawn per frame ---------- */
 
 function roundedRect(shape, x, y, w, h, r) {
   shape.moveTo(x + r, y)
@@ -88,52 +174,97 @@ function drawGlyph(ctx, glyph, t, ink, mid) {
   ctx.restore()
 }
 
-function drawScreen(ctx, project, t, glitch) {
-  const [paper, mid, ink] = project.screen
-  const bg = ctx.createRadialGradient(SCREEN_W / 2, SCREEN_H / 2, 80, SCREEN_W / 2, SCREEN_H / 2, SCREEN_W * 0.7)
-  bg.addColorStop(0, '#fffdf4')
-  bg.addColorStop(0.35, paper)
-  bg.addColorStop(1, mid)
-  ctx.fillStyle = bg
-  ctx.fillRect(0, 0, SCREEN_W, SCREEN_H)
+function layer(scale, height = SCREEN_H) {
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(SCREEN_W * scale)
+  canvas.height = Math.round(height * scale)
+  const ctx = canvas.getContext('2d')
+  ctx.setTransform(scale, 0, 0, scale, 0, 0)
+  return { canvas, ctx }
+}
 
-  drawGlyph(ctx, project.glyph, t, ink, mid)
-
-  ctx.fillStyle = ink
-  ctx.font = '600 26px "VT323", "Courier New", monospace'
-  ctx.fillText(`${project.number} / 04  ${project.kicker}`, 110, 118)
-
-  ctx.font = '700 80px "STIX Two Text", Georgia, serif'
-  const lines = wrapLines(ctx, project.title, SCREEN_W - 240)
-  const baseY = SCREEN_H - 170 - (lines.length - 1) * 80
-  lines.forEach((line, index) => ctx.fillText(line, 110, baseY + index * 80))
-  ctx.font = 'italic 400 38px "STIX Two Text", Georgia, serif'
-  ctx.fillText(project.line, 112, SCREEN_H - 112)
-
-  if (Math.floor(t * 1.6) % 2 === 0) ctx.fillRect(SCREEN_W - 140, 96, 28, 28)
-
-  if (glitch > 0) {
-    for (let i = 0; i < 26 * glitch; i += 1) {
-      const y = Math.random() * SCREEN_H
-      const h = 4 + Math.random() * 40
-      ctx.drawImage(ctx.canvas, 0, y, SCREEN_W, h, (Math.random() - 0.5) * 120 * glitch, y, SCREEN_W, h)
-    }
-    ctx.globalAlpha = glitch * 0.65
-    for (let i = 0; i < 900 * glitch; i += 1) {
-      ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#111'
-      ctx.fillRect(Math.random() * SCREEN_W, Math.random() * SCREEN_H, 3 + Math.random() * 8, 2)
-    }
-    ctx.globalAlpha = 1
+// Paints the CRT screen. Background, text and the scanline/vignette overlay only change when
+// the project changes, so they are rendered once into offscreen layers and composited.
+class ScreenPainter {
+  constructor(scale) {
+    this.scale = scale
+    this.out = layer(scale)
+    this.base = layer(scale)
+    this.text = layer(scale)
+    this.overlay = layer(scale, SCREEN_H + 4)
+    this.project = null
+    const o = this.overlay.ctx
+    o.fillStyle = 'rgba(0,0,0,0.1)'
+    for (let y = 0; y < SCREEN_H + 4; y += 4) o.fillRect(0, y, SCREEN_W, 1.6)
+    const vignette = o.createRadialGradient(SCREEN_W / 2, SCREEN_H / 2, SCREEN_W * 0.42, SCREEN_W / 2, SCREEN_H / 2, SCREEN_W * 0.72)
+    vignette.addColorStop(0, 'rgba(0,0,0,0)')
+    vignette.addColorStop(1, 'rgba(0,0,0,0.35)')
+    o.fillStyle = vignette
+    o.fillRect(0, 0, SCREEN_W, SCREEN_H + 4)
   }
 
-  ctx.fillStyle = 'rgba(0,0,0,0.1)'
-  for (let y = (t * 40) % 4; y < SCREEN_H; y += 4) ctx.fillRect(0, y, SCREEN_W, 1.6)
+  setProject(project) {
+    if (this.project === project) return
+    this.project = project
+    const [paper, mid, ink] = project.screen
+    const b = this.base.ctx
+    const bg = b.createRadialGradient(SCREEN_W / 2, SCREEN_H / 2, 80, SCREEN_W / 2, SCREEN_H / 2, SCREEN_W * 0.7)
+    bg.addColorStop(0, '#fffdf4')
+    bg.addColorStop(0.35, paper)
+    bg.addColorStop(1, mid)
+    b.fillStyle = bg
+    b.fillRect(0, 0, SCREEN_W, SCREEN_H)
 
-  const vignette = ctx.createRadialGradient(SCREEN_W / 2, SCREEN_H / 2, SCREEN_W * 0.42, SCREEN_W / 2, SCREEN_H / 2, SCREEN_W * 0.72)
-  vignette.addColorStop(0, 'rgba(0,0,0,0)')
-  vignette.addColorStop(1, 'rgba(0,0,0,0.35)')
-  ctx.fillStyle = vignette
-  ctx.fillRect(0, 0, SCREEN_W, SCREEN_H)
+    const c = this.text.ctx
+    c.clearRect(0, 0, SCREEN_W, SCREEN_H)
+    c.fillStyle = ink
+    c.font = '600 26px "VT323", "Courier New", monospace'
+    c.fillText(`${project.number} / 04  ${project.kicker}`, 110, 118)
+    c.font = '700 80px "STIX Two Text", Georgia, serif'
+    const lines = wrapLines(c, project.title, SCREEN_W - 240)
+    const baseY = SCREEN_H - 170 - (lines.length - 1) * 80
+    lines.forEach((line, index) => c.fillText(line, 110, baseY + index * 80))
+    c.font = 'italic 400 38px "STIX Two Text", Georgia, serif'
+    c.fillText(project.line, 112, SCREEN_H - 112)
+  }
+
+  // Fonts can arrive after the first paint; repaint the cached text once they do.
+  invalidate() {
+    const project = this.project
+    this.project = null
+    if (project) this.setProject(project)
+  }
+
+  draw(t, glitch) {
+    const { ctx, canvas } = this.out
+    const [, mid, ink] = this.project.screen
+    ctx.drawImage(this.base.canvas, 0, 0, SCREEN_W, SCREEN_H)
+    drawGlyph(ctx, this.project.glyph, t, ink, mid)
+    ctx.drawImage(this.text.canvas, 0, 0, SCREEN_W, SCREEN_H)
+    ctx.fillStyle = ink
+    if (Math.floor(t * 1.6) % 2 === 0) ctx.fillRect(SCREEN_W - 140, 96, 28, 28)
+
+    if (glitch > 0) {
+      const s = this.scale
+      for (let i = 0; i < 26 * glitch; i += 1) {
+        const y = Math.random() * SCREEN_H
+        const h = 4 + Math.random() * 40
+        ctx.drawImage(canvas, 0, y * s, canvas.width, h * s, (Math.random() - 0.5) * 120 * glitch, y, SCREEN_W, h)
+      }
+      ctx.globalAlpha = glitch * 0.65
+      for (let i = 0; i < 600 * glitch; i += 1) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#fff' : '#111'
+        ctx.fillRect(Math.random() * SCREEN_W, Math.random() * SCREEN_H, 3 + Math.random() * 8, 2)
+      }
+      ctx.globalAlpha = 1
+    }
+
+    ctx.drawImage(this.overlay.canvas, 0, -((t * 40) % 4), SCREEN_W, SCREEN_H + 4)
+  }
+
+  dispose() {
+    ;[this.out, this.base, this.text, this.overlay].forEach((item) => { item.canvas.width = 0 })
+  }
 }
 
 function makeBadgeTexture() {
@@ -158,14 +289,28 @@ function makeBadgeTexture() {
   return texture
 }
 
+function makeShadowTexture() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 256
+  const ctx = canvas.getContext('2d')
+  const gradient = ctx.createRadialGradient(128, 128, 10, 128, 128, 128)
+  gradient.addColorStop(0, 'rgba(0,0,0,0.75)')
+  gradient.addColorStop(0.55, 'rgba(0,0,0,0.35)')
+  gradient.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, 256, 256)
+  return new THREE.CanvasTexture(canvas)
+}
+
 function useComputerGeometry() {
-  return useMemo(() => {
+  const geometry = useMemo(() => {
     const bezelShape = roundedRect(new THREE.Shape(), -1.25, -1.05, 2.5, 2.1, 0.16)
     bezelShape.holes.push(roundedRect(new THREE.Path(), -1.02, -0.62, 2.04, 1.5, 0.12))
     const bezel = new THREE.ExtrudeGeometry(bezelShape, { depth: 0.2, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 3 })
 
     // Tapered CRT body: pull the back face in so the housing reads as a tube, not a box.
-    const housing = new THREE.BoxGeometry(2.42, 2.02, 1.5, 1, 1, 1)
+    const housing = new THREE.BoxGeometry(2.42, 2.02, 1.2, 1, 1, 1)
     const pos = housing.attributes.position
     for (let i = 0; i < pos.count; i += 1) {
       if (pos.getZ(i) < 0) {
@@ -184,139 +329,187 @@ function useComputerGeometry() {
     }
     screen.computeVertexNormals()
 
-    // Keyboard unit side profile, extruded across the width.
     const profile = new THREE.Shape()
-    profile.moveTo(1.45, 0)
-    profile.lineTo(-1.2, 0)
-    profile.lineTo(-1.2, 0.5)
-    profile.lineTo(-0.2, 0.5)
-    profile.lineTo(1.45, 0.2)
-    profile.lineTo(1.45, 0)
-    const base = new THREE.ExtrudeGeometry(profile, { depth: 3.4, bevelEnabled: true, bevelSize: 0.03, bevelThickness: 0.03, bevelSegments: 2 })
+    profile.moveTo(PROFILE.front, 0)
+    profile.lineTo(PROFILE.back, 0)
+    profile.lineTo(PROFILE.back, PROFILE.backH)
+    profile.lineTo(PROFILE.breakZ, PROFILE.backH)
+    profile.lineTo(PROFILE.front, PROFILE.frontH)
+    profile.lineTo(PROFILE.front, 0)
+    const base = new THREE.ExtrudeGeometry(profile, { depth: BASE_W, bevelEnabled: true, bevelSize: BEVEL, bevelThickness: BEVEL, bevelSegments: 2 })
     base.rotateY(-Math.PI / 2)
-    base.translate(1.7, 0, 0)
+    base.translate(BASE_W / 2, 0, 0)
 
-    return { bezel, housing, screen, base }
+    // Keycap: slightly tapered so the tops read as caps rather than flat tiles.
+    const keycap = new THREE.BoxGeometry(1, 1, 1)
+    const kp = keycap.attributes.position
+    for (let i = 0; i < kp.count; i += 1) {
+      if (kp.getY(i) > 0) {
+        kp.setX(i, kp.getX(i) * 0.84)
+        kp.setZ(i, kp.getZ(i) * 0.8 - 0.04)
+      }
+    }
+    keycap.computeVertexNormals()
+
+    return { bezel, housing, screen, base, keycap }
   }, [])
+
+  useEffect(() => () => Object.values(geometry).forEach((item) => item.dispose()), [geometry])
+  return geometry
 }
 
-function Keys() {
+function Keyboard({ keycap }) {
   const ref = useRef(null)
-  const layout = useMemo(() => {
-    const keys = []
-    for (let row = 0; row < 5; row += 1) {
-      const count = row === 4 ? 0 : 14
-      for (let col = 0; col < count; col += 1) keys.push([-1.33 + col * 0.19 + (row % 2) * 0.05, row, 0.16])
-    }
-    for (let col = 0; col < 3; col += 1) for (let row = 0; row < 4; row += 1) keys.push([1.38 + col * 0.19, row, 0.16])
-    return keys
-  }, [])
+  const layout = useMemo(() => buildKeyLayout(), [])
 
   useEffect(() => {
     const dummy = new THREE.Object3D()
-    layout.forEach(([x, row], index) => {
-      dummy.position.set(x, 0.04, -0.62 + row * 0.2)
+    const color = new THREE.Color()
+    layout.keys.forEach((key, index) => {
+      // Keycaps rest on the well floor; their tops sit just proud of the case surface.
+      dummy.position.set(key.x, KEY_HEIGHT / 2 - 0.012, key.z)
+      dummy.scale.set(key.w, KEY_HEIGHT, key.d)
       dummy.updateMatrix()
       ref.current.setMatrixAt(index, dummy.matrix)
+      ref.current.setColorAt(index, color.set(KEY_COLORS[key.kind]))
     })
     ref.current.instanceMatrix.needsUpdate = true
+    ref.current.instanceColor.needsUpdate = true
   }, [layout])
 
   return (
-    <group position={[0, 0.355, 0.62]} rotation={[0.18, 0, 0]}>
-      <instancedMesh ref={ref} args={[undefined, undefined, layout.length]} castShadow>
-        <boxGeometry args={[0.16, 0.07, 0.16]} />
-        <meshStandardMaterial color="#2a2522" roughness={0.55} />
+    <group position={[0, SLOPE_CENTER.y, SLOPE_CENTER.z]} rotation={[SLOPE_ANGLE, 0, 0]}>
+      <mesh position={[0, -0.006, 0]}>
+        <boxGeometry args={[layout.well.w, 0.02, layout.well.d]} />
+        <meshStandardMaterial color="#171412" roughness={0.9} />
+      </mesh>
+      <instancedMesh ref={ref} args={[keycap, undefined, layout.keys.length]}>
+        <meshStandardMaterial roughness={0.48} metalness={0.05} />
       </instancedMesh>
-      <mesh position={[-0.1, 0.04, 0.2]}>
-        <boxGeometry args={[1.5, 0.07, 0.16]} />
-        <meshStandardMaterial color="#2a2522" roughness={0.55} />
+      <mesh position={[0, 0.004, SLOPE_LENGTH / 2 - 0.2]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[BASE_W - 0.6, 0.012]} />
+        <meshBasicMaterial color="#8b8071" />
       </mesh>
     </group>
   )
 }
 
-function Computer({ projects, activeIndex, progressRef, reducedMotion }) {
+const easeOut = (t) => 1 - (1 - t) ** 3
+
+function Computer({ projects, activeIndex, progressRef, reducedMotion, introDelay }) {
   const group = useRef(null)
   const screenLight = useRef(null)
   const screenMaterial = useRef(null)
   const glitch = useRef(0)
   const lastIndex = useRef(activeIndex)
-  const { viewport, pointer } = useThree()
+  const accumulator = useRef(1)
+  const { viewport } = useThree()
   const geo = useComputerGeometry()
 
-  const { canvas, ctx, texture } = useMemo(() => {
-    const c = document.createElement('canvas')
-    c.width = SCREEN_W
-    c.height = SCREEN_H
-    const tex = new THREE.CanvasTexture(c)
+  const { painter, texture } = useMemo(() => {
+    const p = new ScreenPainter(window.innerWidth < 760 ? 0.6 : 1)
+    p.setProject(projects[activeIndex])
+    const tex = new THREE.CanvasTexture(p.out.canvas)
     tex.colorSpace = THREE.SRGBColorSpace
-    return { canvas: c, ctx: c.getContext('2d'), texture: tex }
+    return { painter: p, texture: tex }
+  // The painter is created once; project changes are handled per frame.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const badge = useMemo(() => makeBadgeTexture(), [])
+  const shadow = useMemo(() => makeShadowTexture(), [])
 
-  useEffect(() => () => {
-    texture.dispose()
-    badge.dispose()
-    canvas.width = 0
-  }, [texture, badge, canvas])
+  useEffect(() => {
+    let alive = true
+    document.fonts.ready.then(() => { if (alive) painter.invalidate() })
+    return () => {
+      alive = false
+      texture.dispose()
+      badge.dispose()
+      shadow.dispose()
+      painter.dispose()
+    }
+  }, [texture, badge, shadow, painter])
 
   useFrame((state, delta) => {
+    const t = state.clock.elapsedTime
+    const project = projects[activeIndex]
     if (lastIndex.current !== activeIndex) {
       lastIndex.current = activeIndex
       glitch.current = 1
+      painter.setProject(project)
     }
     glitch.current = Math.max(0, glitch.current - delta * 3.2)
-    const t = state.clock.elapsedTime
-    const project = projects[activeIndex]
-    drawScreen(ctx, project, t, glitch.current)
-    screenMaterial.current.map.needsUpdate = true
+
+    // The screen repaints at ~30fps (every frame while glitching); the 3D scene stays at full rate.
+    accumulator.current += delta
+    if (glitch.current > 0 || accumulator.current >= 1 / SCREEN_FPS) {
+      accumulator.current = 0
+      painter.draw(reducedMotion ? 0 : t, glitch.current)
+      screenMaterial.current.map.needsUpdate = true
+    }
+
+    const progress = progressRef.current
+    const exit = THREE.MathUtils.clamp((progress - 0.86) / 0.14, 0, 1)
+    const enter = reducedMotion ? 1 : easeOut(THREE.MathUtils.clamp((t - introDelay) / 1.6, 0, 1))
 
     if (screenLight.current) {
       screenLight.current.color.set(project.screen[0])
-      screenLight.current.intensity = 5 + Math.sin(t * 30) * 0.25 - glitch.current * 2
+      screenLight.current.intensity = (5 + Math.sin(t * 30) * 0.25 - glitch.current * 2) * (0.4 + enter * 0.6) + exit * 6
     }
 
     const wide = viewport.aspect > 1.05
-    const targetX = wide ? Math.min(viewport.width * 0.24, 3.2) : 0
-    const targetY = wide ? -1.35 : -1.55
-    const scale = wide ? Math.min(1, viewport.width / 11) : Math.min(0.78, viewport.width / 3.6)
-    const progress = progressRef.current
+    const targetX = (wide ? Math.min(viewport.width * 0.24, 3.2) : 0) * (1 - exit)
+    const targetY = (wide ? -1.35 : -1.2) - (1 - enter) * 1.4 - exit * 0.9
+    const scale = (wide ? Math.min(1, viewport.width / 11) : Math.min(0.7, viewport.width / 4.5)) * (1 + exit * 1.6)
+    const pointer = state.pointer
     const g = group.current
     g.position.x = THREE.MathUtils.damp(g.position.x, targetX, 4, delta)
-    g.position.y = THREE.MathUtils.damp(g.position.y, targetY + (reducedMotion ? 0 : Math.sin(t * 0.8) * 0.04), 4, delta)
+    g.position.y = THREE.MathUtils.damp(g.position.y, targetY + (reducedMotion ? 0 : Math.sin(t * 0.8) * 0.035), 4, delta)
+    g.position.z = THREE.MathUtils.damp(g.position.z, exit * 2.2, 4, delta)
     g.scale.setScalar(THREE.MathUtils.damp(g.scale.x, scale, 4, delta))
-    const yaw = (wide ? -0.5 : -0.22) + (reducedMotion ? 0 : pointer.x * 0.12 + progress * 0.28)
+    const yaw = (wide ? -0.5 : -0.24) * (1 - exit) + (1 - enter) * 0.7 + (reducedMotion ? 0 : pointer.x * 0.1 + progress * 0.3 * (1 - exit))
     g.rotation.y = THREE.MathUtils.damp(g.rotation.y, yaw, 3, delta)
-    g.rotation.x = THREE.MathUtils.damp(g.rotation.x, reducedMotion ? 0.04 : 0.04 - pointer.y * 0.05, 3, delta)
+    g.rotation.x = THREE.MathUtils.damp(g.rotation.x, reducedMotion ? 0.04 : 0.04 - pointer.y * 0.05 + progress * 0.05, 3, delta)
+
+    // A slow dolly-in across the carousel gives the object weight without competing with it.
+    if (!reducedMotion) {
+      state.camera.position.z = THREE.MathUtils.damp(state.camera.position.z, 9 - progress * 0.9, 3, delta)
+      state.camera.position.y = THREE.MathUtils.damp(state.camera.position.y, 1.1 - progress * 0.25, 3, delta)
+      state.camera.lookAt(0, 0.1, 0)
+    }
   })
 
   const beige = <meshStandardMaterial color={BEIGE} roughness={0.62} metalness={0.02} />
 
   return (
     <group ref={group}>
-      <mesh geometry={geo.base} castShadow receiveShadow>{beige}</mesh>
-      <mesh position={[0, 0.005, 0]} scale={[1.01, 0.12, 1.01]}>
-        <boxGeometry args={[3.4, 0.2, 2.65]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0.1]} scale={[BASE_W * 1.7, BASE_DEPTH * 1.5, 1]}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial map={shadow} transparent depthWrite={false} />
+      </mesh>
+      <mesh geometry={geo.base}>{beige}</mesh>
+      <mesh position={[0, 0.012, (PROFILE.front + PROFILE.back) / 2]}>
+        <boxGeometry args={[BASE_W + BEVEL * 2 + 0.02, 0.024, BASE_DEPTH + BEVEL * 2 + 0.02]} />
         <meshStandardMaterial color={BEIGE_DARK} roughness={0.8} />
       </mesh>
-      <Keys />
-      <mesh position={[1.25, 0.505, -0.55]}>
-        <boxGeometry args={[0.7, 0.02, 0.08]} />
+      <Keyboard keycap={geo.keycap} />
+      <mesh position={[1.12, PROFILE.backH + BEVEL + 0.004, -0.62]}>
+        <boxGeometry args={[0.62, 0.012, 0.07]} />
         <meshStandardMaterial color="#1b1816" />
       </mesh>
-      <mesh position={[-1.4, 0.51, -0.4]}>
-        <sphereGeometry args={[0.03, 12, 12]} />
+      <mesh position={[-1.42, PROFILE.backH + BEVEL + 0.012, -0.5]}>
+        <sphereGeometry args={[0.028, 12, 12]} />
         <meshBasicMaterial color="#ff4b3a" toneMapped={false} />
       </mesh>
 
-      <group position={[0, 1.95, -0.6]} scale={1.28}>
+      {/* Monitor: its neck rests exactly on the flat top of the base. */}
+      <group position={[0, PROFILE.backH + BEVEL + 1.1 * 1.28, -0.62]} scale={1.28}>
         <mesh position={[0, -1.02, -0.2]}>
-          <boxGeometry args={[1.2, 0.16, 0.9]} />
+          <boxGeometry args={[1.2, 0.16, 0.8]} />
           <meshStandardMaterial color={BEIGE_DARK} roughness={0.7} />
         </mesh>
-        <mesh geometry={geo.housing} position={[0, 0, -0.62]} castShadow>{beige}</mesh>
-        <mesh geometry={geo.bezel} position={[0, 0, 0.1]} castShadow>{beige}</mesh>
+        <mesh geometry={geo.housing} position={[0, 0, -0.48]}>{beige}</mesh>
+        <mesh geometry={geo.bezel} position={[0, 0, 0.1]}>{beige}</mesh>
         <mesh position={[0, 0.13, 0.06]}>
           <planeGeometry args={[2.2, 1.66]} />
           <meshStandardMaterial color="#0d0c0b" roughness={0.9} />
@@ -334,9 +527,32 @@ function Computer({ projects, activeIndex, progressRef, reducedMotion }) {
   )
 }
 
-export default function RetroComputer({ projects, activeIndex, progressRef, reducedMotion }) {
+function Lights({ progressRef }) {
+  const key = useRef(null)
+  const rim = useRef(null)
+  const warm = useMemo(() => new THREE.Color('#ffe2c4'), [])
+  const cool = useMemo(() => new THREE.Color('#d9d2ff'), [])
+  useFrame(() => {
+    // Light drifts from warm studio key to a cooler, rim-heavy look as the carousel advances.
+    const p = progressRef.current
+    key.current.color.lerpColors(warm, cool, p)
+    key.current.intensity = 2.1 - p * 0.5
+    rim.current.intensity = 2.2 + p * 2
+  })
+  return (
+    <>
+      <hemisphereLight args={['#c9b2ff', '#120a18', 0.55]} />
+      <directionalLight ref={key} position={[-4, 6, 5]} intensity={2.1} color="#ffe2c4" />
+      <directionalLight ref={rim} position={[5, 2, -4]} intensity={2.2} color="#b28cff" />
+      <spotLight position={[2, 6, 3]} angle={0.5} penumbra={0.8} intensity={30} color="#fff1df" />
+    </>
+  )
+}
+
+export default function RetroComputer({ projects, activeIndex, progressRef, reducedMotion, introDelay = 0 }) {
   const wrapRef = useRef(null)
   const [visible, setVisible] = useState(true)
+  const [dpr] = useState(() => [1, window.innerWidth < 760 ? 1.5 : 1.75])
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting))
@@ -348,16 +564,13 @@ export default function RetroComputer({ projects, activeIndex, progressRef, redu
     <div className="retro-computer" ref={wrapRef} aria-hidden="true">
       <Canvas
         frameloop={visible ? 'always' : 'never'}
-        dpr={[1, 1.75]}
+        dpr={dpr}
         camera={{ position: [0, 1.1, 9], fov: 30 }}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         onCreated={({ camera }) => camera.lookAt(0, 0.1, 0)}
       >
-        <hemisphereLight args={['#c9b2ff', '#120a18', 0.55]} />
-        <directionalLight position={[-4, 6, 5]} intensity={2.1} color="#ffe2c4" />
-        <directionalLight position={[5, 2, -4]} intensity={2.4} color="#b28cff" />
-        <spotLight position={[2, 6, 3]} angle={0.5} penumbra={0.8} intensity={30} color="#fff1df" />
-        <Computer projects={projects} activeIndex={activeIndex} progressRef={progressRef} reducedMotion={reducedMotion} />
+        <Lights progressRef={progressRef} />
+        <Computer projects={projects} activeIndex={activeIndex} progressRef={progressRef} reducedMotion={reducedMotion} introDelay={introDelay} />
       </Canvas>
     </div>
   )

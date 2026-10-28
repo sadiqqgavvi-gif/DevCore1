@@ -448,63 +448,37 @@ button, input, textarea { font: inherit; color: inherit; }
 .dos-step__ok { grid-row: 1; grid-column: 3; color: #6dfc8b; }
 .dos__cursor { animation: blink 1s steps(2) infinite; }
 
-/* ---------- Convinced + wave ---------- */
+/* ---------- Convinced: a quiet hand-off into the Chapter 11 reel ---------- */
 
-.convinced { padding-top: 24vh; overflow: hidden; background: linear-gradient(#07060d 0%, #0a0709 30%, #13106a 78%, #1f1ca8 100%); text-align: center; }
-.convinced__copy { padding: 0 var(--gutter); }
-.convinced h2 { max-width: 980px; margin: 0 auto 22px; font-size: clamp(42px, 6vw, 100px); font-weight: 500; line-height: 1.06; text-wrap: balance; }
-.convinced p { font-size: 19px; color: var(--cream-dim); }
-.wave-band { height: 70vh; margin-top: 14vh; overflow: hidden; -webkit-mask-image: linear-gradient(transparent, #000 20%, #000 70%, transparent); mask-image: linear-gradient(transparent, #000 20%, #000 70%, transparent); }
-.wave-band div {
-  width: 130%;
-  height: 100%;
-  margin-left: -15%;
-  background: repeating-linear-gradient(90deg, #f3ead6 0 16px, #0b0808 16px 30px);
-  filter: url(#wave-filter);
-}
-
-/* ---------- Golden floppy ---------- */
-
-.golden {
+.convinced {
   position: relative;
-  padding: 120px var(--gutter) 90px;
+  padding: 24vh 0 30vh;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 0%, #2e2620 0%, #090706 62%);
+  background: linear-gradient(#07050a 0%, #0a0709 55%, #120d0b 100%);
   text-align: center;
 }
-.golden h2 { position: relative; font-size: clamp(40px, 5.8vw, 98px); font-weight: 500; line-height: 1.06; text-wrap: balance; }
-.golden > p { position: relative; margin-top: 14px; font-size: clamp(18px, 1.8vw, 26px); text-shadow: var(--glow); }
-.golden small { display: block; font-family: var(--pixel); font-size: 18px; color: var(--cream-dim); }
-.golden__beams i {
+.convinced__copy { position: relative; z-index: 1; padding: 0 var(--gutter); }
+.convinced h2 { max-width: 980px; margin: 0 auto 22px; font-size: clamp(42px, 6vw, 100px); font-weight: 500; line-height: 1.06; text-wrap: balance; }
+.convinced p { font-size: 19px; color: var(--cream-dim); }
+.convinced__rule {
+  display: block;
+  width: min(520px, 70vw);
+  height: 1px;
+  margin: 9vh auto 0;
+  background: linear-gradient(90deg, transparent, var(--accent-b), transparent);
+  box-shadow: 0 0 14px rgba(255, 179, 107, 0.55);
+}
+.convinced__spot {
   position: absolute;
-  top: -10%;
-  width: 30vw;
-  height: 130%;
-  background: linear-gradient(rgba(255, 232, 190, 0.22), rgba(255, 232, 190, 0));
-  clip-path: polygon(45% 0, 55% 0, 100% 100%, 0 100%);
-  mix-blend-mode: screen;
+  left: 50%;
+  bottom: 0;
+  width: min(760px, 120vw);
+  height: 26vh;
+  translate: -50% 0;
+  transform-origin: 50% 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 226, 180, 0.16), transparent 70%);
   pointer-events: none;
 }
-.golden__beams i:nth-child(1) { left: 35vw; }
-.golden__beams i:nth-child(2) { left: 8vw; transform: rotate(-16deg); opacity: 0.6; }
-.golden__beams i:nth-child(3) { right: 8vw; transform: rotate(16deg); opacity: 0.6; }
-.golden__sign {
-  display: inline-block;
-  margin-bottom: 34px;
-  padding: 4px 18px 2px;
-  border: 2px solid #ff5d4a;
-  border-radius: 4px;
-  color: #ffb3a6;
-  font-family: var(--pixel);
-  font-size: 26px;
-  letter-spacing: 0.2em;
-  text-shadow: 0 0 10px #ff3b2a;
-  box-shadow: 0 0 18px rgba(255, 70, 50, 0.6), inset 0 0 12px rgba(255, 70, 50, 0.4);
-  animation: blink 1.6s steps(2) infinite;
-}
-.golden-floppy { position: relative; width: min(560px, 92vw); aspect-ratio: 1; margin: 10px auto 0; }
-.golden-floppy__hit { position: absolute; inset: 18%; z-index: 2; background: transparent; border: 0; border-radius: 12px; cursor: pointer; }
-.golden-floppy__hit:focus-visible { outline: 2px dashed var(--accent-b); }
 
 /* ---------- Contact ---------- */
 
@@ -671,5 +645,5 @@ button, input, textarea { font: inherit; color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   .reveal { opacity: 1; transform: none; transition: none; }
-  .hero__smoke i, .crt-overlay__grain, .golden__sign, .boot__hint, .dos__cursor { animation: none; }
+  .hero__smoke i, .crt-overlay__grain, .boot__hint, .dos__cursor { animation: none; }
 }

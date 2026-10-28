@@ -1,0 +1,106 @@
+/*
+  Foundation layer (loaded after App.css and every section stylesheet).
+  1. Section veils      - translucent sections so the shared 3D world reads through
+  2. Readable type      - a floor for informational text and stronger text colours
+  3. Short/landscape    - landscape phones and short viewports
+  Tokens are defined in index.css.
+*/
+
+/* ---------- 1. Section veils ---------- */
+.intro,
+.what-we-do,
+.work,
+.process-journey,
+.technology,
+.principles { background: var(--section-veil); }
+
+.what-we-do { --veil-body: 0.58; }
+.work { --veil-body: 0.5; }
+.process-journey { --veil-body: 0.54; background: radial-gradient(ellipse at 79% 49%, rgba(65, 92, 178, 0.1), transparent 44%), var(--section-veil); }
+.technology { --veil-body: 0.56; background: radial-gradient(ellipse at 87% 45%, rgba(55, 81, 169, 0.1), transparent 42%), var(--section-veil); }
+.principles { --veil-body: 0.54; background: radial-gradient(ellipse at 12% 72%, rgba(86, 66, 160, 0.1), transparent 38%), var(--section-veil); }
+.contact-final {
+  --veil-body: 0.5;
+  background:
+    radial-gradient(ellipse at var(--contact-pointer-x, 78%) var(--contact-pointer-y, 45%), rgba(67, 93, 196, 0.14), transparent 38%),
+    var(--section-veil);
+}
+
+/* Large headings sit directly on the veil; a soft shadow keeps them legible over bright parts of the scene. */
+.intro h2, .section-heading h2, .what-we-do__title h2, .process-journey__heading h2,
+.technology__heading h2, .principles__heading h2, .contact-final__copy h2, .story-panel h2 {
+  text-shadow: 0 2px 28px rgba(var(--veil-rgb), 0.7);
+}
+
+/* ---------- 2. Readable type ---------- */
+/* Labels: mono captions, kickers and meta rows */
+.eyebrow, .hero-eyebrow, .story-panel .eyebrow { font-size: var(--fs-label); color: var(--text-3); }
+.eyebrow-year, .kicker-aside { color: var(--faint); }
+.section-kicker, .kicker-number, .kicker-aside, .nav-index, .hero-bottom, .hero-stage-annotations,
+.hero-index span, .intro-signature, .work-meta > div > span, .work-disclaimer,
+.what-we-do__footer, .service-entry__head, .service-entry__head i, .service-orbit__readout,
+.service-entry__tags span, .process-map-panel__head, .process-map-panel__foot,
+.process-map__coordinate, .process-journey__active-top, .process-journey__signal,
+.process-journey__active-foot, .process-journey__static-stage > span, .process-journey__static-stage i,
+.technology-group__head, .technology-group__head i, .technology-tool, .technology__foot,
+.principle-card__head, .principle-card__copy > span, .principles__foot,
+.contact-form__heading > span, .contact-form label, .contact-final__foot,
+.footer-note, .footer-copy, .chapter-transition__index, .chapter-transition__signal {
+  font-size: var(--fs-micro);
+}
+.section-kicker, .hero-bottom, .hero-stage-annotations, .intro-signature, .work-disclaimer,
+.what-we-do__footer, .service-orbit__readout, .process-map-panel__foot, .technology__foot,
+.principles__foot, .contact-final__foot, .footer-note, .footer-copy, .contact-form label,
+.contact-form__heading > span, .service-entry__head, .technology-group__head,
+.principle-card__head, .work-meta > div > span { color: var(--text-3); }
+.hero-index { font-size: var(--fs-label); }
+.technology-group__signal { font-size: 9px; color: var(--text-3); }
+.cursor-label { font-size: 8px; }
+
+/* Body copy */
+.hero-description, .intro-copy, .heading-note, .work-meta p, .what-we-do__intro,
+.process-journey__heading > p:last-child, .process-journey__active > p, .principles__heading > p,
+.technology__heading > p, .contact-final__copy > p:not(.eyebrow), .story-panel > p:last-child {
+  font-size: var(--fs-body);
+  color: var(--text-2);
+}
+.service-entry__body p, .technology-group__copy > span, .principle-card__copy p,
+.process-journey__static-stage p { font-size: var(--fs-small); color: var(--text-2); }
+.contact-form__note { font-size: var(--fs-label); color: var(--text-3); }
+.main-nav > a, .footer-links a { font-size: var(--fs-small); }
+.contact-final__email { font-size: var(--fs-small); }
+.contact-form input, .contact-form textarea, .contact-form select { font-size: 14px; }
+.contact-form__heading p { color: var(--text-1); }
+
+@media (max-width: 760px) {
+  /* 16px stops iOS Safari zooming the page when a field is focused */
+  .contact-form input, .contact-form textarea, .contact-form select { font-size: 16px; }
+  .hero-description, .intro-copy, .heading-note, .work-meta p, .what-we-do__intro,
+  .process-journey__heading > p:last-child, .process-journey__active > p, .principles__heading > p,
+  .technology__heading > p, .contact-final__copy > p:not(.eyebrow), .story-panel > p:last-child {
+    font-size: 13px;
+  }
+  .story-panel > p:last-child { max-width: 300px; }
+}
+
+@media (max-width: 560px) {
+  .hero-bottom > span:first-child { display: none; }
+  .hero-bottom { justify-content: flex-start; }
+  .footer-note { font-size: var(--fs-micro); }
+}
+
+/* ---------- 3. Short / landscape viewports (landscape phones) ---------- */
+@media (max-height: 520px) and (orientation: landscape) {
+  .hero-experience { min-height: 0; height: 300svh; }
+  .hero-stage { min-height: 0; }
+  .hero-copy { top: 19%; }
+  .hero-headline { margin: 14px 0 12px; font-size: clamp(40px, 15vh, 72px); }
+  .hero-description { max-width: 420px; font-size: 12px; }
+  .hero-actions { margin-top: 14px; }
+  .hero-story-ui { top: 21%; }
+  .story-panel { top: 46px; }
+  .story-panel h2, .story-panel-1 h2, .story-panel-2 h2, .story-panel-3 h2, .story-panel-4 h2 { font-size: clamp(28px, 9vh, 46px); }
+  .hero-stage-annotations, .hero-index { display: none; }
+  .work-pin { min-height: 0; }
+  .work-artwork { height: min(62vh, 550px); min-height: 220px; }
+}

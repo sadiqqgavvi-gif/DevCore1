@@ -1,17 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { ScrollTrigger } from '../../lib/gsap.js'
 
-const HeroScene = lazy(() => import('../HeroScene.jsx'))
-const sectionSelectors = [
-  '#home',
-  '#about',
-  '.what-we-do',
-  '#work',
-  '#process',
-  '#technology',
-  '#principles',
-  '#contact',
-]
+const LusionScene = lazy(() => import('./LusionScene.jsx'))
 
 function ScenePlaceholder() {
   return (
@@ -23,7 +12,7 @@ function ScenePlaceholder() {
   )
 }
 
-export default function SceneBackground({ motionState, rootRef }) {
+export default function SceneBackground({ motionState }) {
   const [sceneReady, setSceneReady] = useState(false)
 
   useEffect(() => {
@@ -32,69 +21,29 @@ export default function SceneBackground({ motionState, rootRef }) {
   }, [])
 
   useEffect(() => {
-    const root = rootRef.current
-    if (!root) return undefined
-
-    const sections = sectionSelectors
-      .map((selector) => root.querySelector(selector))
-      .filter(Boolean)
-    let disposed = false
-    let sectionStarts = []
     let frame = 0
-    const measureSections = () => {
-      sectionStarts = sections.map((section) => section.getBoundingClientRect().top + window.scrollY)
-      updatePageProgress()
-    }
-
-    const updatePageProgress = () => {
+    const update = () => {
       if (frame) return
       frame = window.requestAnimationFrame(() => {
-        const scrollY = window.scrollY
-        const scrollableDistance = document.documentElement.scrollHeight - window.innerHeight
-        motionState.current.pageProgress = scrollableDistance > 0
-          ? Math.min(1, Math.max(0, scrollY / scrollableDistance))
-          : 0
-
-        let chapter = 0
-        for (let index = 0; index < sectionStarts.length - 1; index += 1) {
-          const start = sectionStarts[index]
-          const end = sectionStarts[index + 1]
-          if (scrollY < end) {
-            chapter = index + (end > start ? (scrollY - start) / (end - start) : 0)
-            break
-          }
-          chapter = index + 1
-        }
-        motionState.current.chapter = sectionStarts.length
-          ? Math.min(sectionStarts.length - 1, Math.max(0, chapter))
-          : 0
+        const max = document.documentElement.scrollHeight - window.innerHeight
+        motionState.current.pageProgress = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
         frame = 0
       })
     }
-
-    updatePageProgress()
-    window.addEventListener('scroll', updatePageProgress, { passive: true })
-    window.addEventListener('resize', measureSections)
-    ScrollTrigger.addEventListener('refresh', measureSections)
-    const measureFrame = window.requestAnimationFrame(measureSections)
-    document.fonts.ready.then(() => {
-      if (!disposed) measureSections()
-    })
-
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
     return () => {
-      disposed = true
-      window.removeEventListener('scroll', updatePageProgress)
-      window.removeEventListener('resize', measureSections)
-      ScrollTrigger.removeEventListener('refresh', measureSections)
-      window.cancelAnimationFrame(measureFrame)
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
       if (frame) window.cancelAnimationFrame(frame)
     }
-  }, [motionState, rootRef])
+  }, [motionState])
 
   return (
     <div className="environment-host" aria-hidden="true">
       {sceneReady
-        ? <Suspense fallback={<ScenePlaceholder />}><HeroScene motionState={motionState} /></Suspense>
+        ? <Suspense fallback={<ScenePlaceholder />}><LusionScene motionState={motionState} /></Suspense>
         : <ScenePlaceholder />}
     </div>
   )

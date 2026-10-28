@@ -1,75 +1,55 @@
 import { useEffect, useRef } from 'react'
 import CustomCursor from './components/layout/CustomCursor.jsx'
-import Footer from './components/layout/Footer.jsx'
 import Navigation from './components/layout/Navigation.jsx'
-import ChapterTransitions from './components/backgrounds/ChapterTransitions.jsx'
 import SceneBackground from './components/backgrounds/SceneBackground.jsx'
-import About from './sections/About/About.jsx'
 import Contact from './sections/Contact/Contact.jsx'
-import Hero from './sections/Hero/Hero.jsx'
-import HowWeWork from './sections/HowWeWork/HowWeWork.jsx'
-import Portfolio from './sections/Portfolio/Portfolio.jsx'
-import Principles from './sections/Principles/Principles.jsx'
-import Technology from './sections/Technology/Technology.jsx'
-import WhatWeDo from './sections/WhatWeDo/WhatWeDo.jsx'
+import { Hero, Statement, Work, Capabilities, Manifesto, Closing, SiteFooter } from './sections/Lusion/Sections.jsx'
 import { ScrollTrigger } from './lib/gsap.js'
 import { usePageMotion } from './hooks/usePageMotion.js'
 import './App.css'
+import './styles/lusion.css'
 
 export default function App() {
   const rootRef = useRef(null)
-  const motionState = useRef({ progress: 0, pageProgress: 0, chapter: 0 })
+  const motionState = useRef({ progress: 0, pageProgress: 0, active: true })
   usePageMotion(rootRef)
 
   useEffect(() => {
     const hash = window.location.hash.slice(1)
     if (!hash) return undefined
-
     let disposed = false
-    let firstFrame = 0
-    let secondFrame = 0
+    let frame = 0
     document.fonts.ready.then(() => {
-      if (disposed) return
-      firstFrame = window.requestAnimationFrame(() => {
-        secondFrame = window.requestAnimationFrame(() => {
-          if (disposed) return
-          const target = document.getElementById(hash)
-          if (!target) return
-
-          ScrollTrigger.refresh()
-          const previousScrollBehavior = document.documentElement.style.scrollBehavior
-          document.documentElement.style.scrollBehavior = 'auto'
-          window.scrollTo(0, target.getBoundingClientRect().top + window.scrollY)
-          document.documentElement.style.scrollBehavior = previousScrollBehavior
-          ScrollTrigger.update()
-        })
+      frame = window.requestAnimationFrame(() => {
+        const target = document.getElementById(hash)
+        if (disposed || !target) return
+        ScrollTrigger.refresh()
+        const root = document.documentElement
+        const previous = root.style.scrollBehavior
+        root.style.scrollBehavior = 'auto'
+        window.scrollTo(0, target.getBoundingClientRect().top + window.scrollY)
+        root.style.scrollBehavior = previous
       })
     })
-
-    return () => {
-      disposed = true
-      window.cancelAnimationFrame(firstFrame)
-      window.cancelAnimationFrame(secondFrame)
-    }
+    return () => { disposed = true; window.cancelAnimationFrame(frame) }
   }, [])
 
   return (
-    <div className="site-shell" ref={rootRef}>
-      <SceneBackground motionState={motionState} rootRef={rootRef} />
-      <ChapterTransitions rootRef={rootRef} />
+    <div className="site-shell lx" ref={rootRef}>
+      <a className="lx-skip" href="#main">Skip to content</a>
+      <SceneBackground motionState={motionState} />
       <CustomCursor rootRef={rootRef} />
       <Navigation />
-      <main>
+      <main id="main" tabIndex={-1}>
         <Hero motionState={motionState} />
-        <About />
-        <WhatWeDo />
-        <Portfolio />
-        <HowWeWork />
-        <Technology />
-        <Principles />
+        <Statement />
+        <Work />
+        <Capabilities />
+        <Manifesto />
+        <Closing />
         <Contact />
       </main>
-      <Footer />
+      <SiteFooter />
     </div>
   )
 }

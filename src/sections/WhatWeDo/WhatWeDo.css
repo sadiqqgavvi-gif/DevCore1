@@ -282,3 +282,16 @@
   .service-entry__body p { font-size: 8px; }
   .service-entry__tags { gap: 4px; margin-top: 5px; }
 }
+
+/* Compact orbit: scale mockup typography so previews are not clipped in the shorter art area */
+@media (max-width: 760px), (max-height: 500px) {
+  .product-preview-content { padding: 4px 7%; }
+  .product-preview-content strong { font-size: 14px; line-height: 1.05; }
+  .product-preview-content > div:first-child { gap: 3px; }
+  .product-preview-content > div:first-child > span { display: none; }
+  .product-preview-orbit { width: 78px; height: 56px; }
+  .product-preview-nav { height: 22px; }
+  .product-preview-footer { display: none; }
+  .design-preview-sheet strong { font-size: 15px; }
+  .design-preview-tag { width: 30px; height: 30px; font-size: 12px; }
+}

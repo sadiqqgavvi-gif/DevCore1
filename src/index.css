@@ -13,14 +13,46 @@
   --bg: #08090d;
   --panel: #0c0d12;
   --text: #e7e8ed;
-  --muted: #898b96;
-  --faint: #555862;
+  --muted: #8d94aa;
+  --faint: #6c7288;
   --line: rgba(207, 211, 232, 0.12);
   --line-soft: rgba(207, 211, 232, 0.07);
   --accent: #9cafff;
   --accent-strong: #a78bfa;
   --mono: 'DM Mono', 'Courier New', monospace;
   --display: 'Manrope', 'DM Sans', sans-serif;
+
+  /* Text colours (all >= 4.5:1 on the page background) */
+  --text-1: #eef0fa; /* headings */
+  --text-2: #b8bfd1; /* body copy */
+  --text-3: #8d94aa; /* labels, captions */
+  --accent-soft: #a7bcff;
+
+  /* Type floor: nothing informational is set below --fs-micro */
+  --fs-micro: 10px;
+  --fs-label: 11px;
+  --fs-small: 12px;
+  --fs-body: 13.5px;
+
+  /* Section veil: sections are translucent so the shared 3D world stays visible behind
+     them; --veil-body is the opacity behind running text and is tuned per section. */
+  --veil-rgb: 7, 8, 14;
+  --veil-body: 0.52;
+  --section-veil: linear-gradient(
+    180deg,
+    rgba(var(--veil-rgb), 0.16) 0,
+    rgba(var(--veil-rgb), var(--veil-body)) 14%,
+    rgba(var(--veil-rgb), var(--veil-body)) 86%,
+    rgba(var(--veil-rgb), 0.2) 100%
+  );
+
+  /* Motion tokens (CSS side; JS side lives in src/lib/motion.js) */
+  --ease-out: cubic-bezier(0.2, 0.75, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 0.2s;
+  --dur-base: 0.3s;
+  --dur-slow: 0.6s;
+
   scroll-behavior: smooth;
 }
 

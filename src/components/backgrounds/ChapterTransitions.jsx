@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { gsap, ScrollTrigger } from '../../lib/gsap.js'
+import { gsap, ScrollTrigger, requestScrollRefresh } from '../../lib/gsap.js'
 import { useReducedMotion } from '../../hooks/useReducedMotion.js'
 import './ChapterTransitions.css'
 
@@ -25,10 +25,6 @@ export default function ChapterTransitions({ rootRef }) {
     if (!root || !frame || reducedMotion) return
 
     let disposed = false
-    let refreshFrame = 0
-    refreshFrame = window.requestAnimationFrame(() => {
-      refreshFrame = window.requestAnimationFrame(() => ScrollTrigger.refresh())
-    })
 
     const updateLabel = (chapter) => {
       numberRef.current.textContent = chapter.number
@@ -85,13 +81,15 @@ export default function ChapterTransitions({ rootRef }) {
       })]
     })
 
+    // Sections build their pins after mount and fonts change layout; one debounced refresh
+    // (shared with every other caller) replaces the previous trio of independent refreshes.
+    requestScrollRefresh(80)
     document.fonts.ready.then(() => {
-      if (!disposed) ScrollTrigger.refresh()
+      if (!disposed) requestScrollRefresh()
     })
 
     return () => {
       disposed = true
-      if (refreshFrame) window.cancelAnimationFrame(refreshFrame)
       triggers.forEach((trigger) => trigger.kill())
     }
   }, [reducedMotion, rootRef])

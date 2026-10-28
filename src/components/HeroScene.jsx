@@ -1,6 +1,9 @@
-import { Component, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import CameraRig from './scene/CameraRig.jsx'
+import { useReducedMotion } from '../hooks/useReducedMotion.js'
+import { BASE_CAMERA_Z, STAGE_ANCHOR_X, getRenderTier, getStageLayout } from '../lib/motion.js'
 
 class SceneBoundary extends Component {
   state = { hasError: false }
@@ -48,7 +51,7 @@ function createCoreGeometry() {
   return geometry
 }
 
-function createOrbitGeometry(offset = 0) {
+function createOrbitGeometry(offset = 0, lite = false) {
   const points = []
   for (let index = 0; index <= 72; index += 1) {
     const progress = (index / 72) * Math.PI * 2
@@ -60,10 +63,10 @@ function createOrbitGeometry(offset = 0) {
     ))
   }
 
-  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 120, 0.008, 5, false)
+  return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), lite ? 72 : 120, 0.008, lite ? 4 : 5, false)
 }
 
-function createEnvironmentGeometry() {
+function createEnvironmentGeometry(count) {
   const positions = []
   const colors = []
   const color = new THREE.Color()
@@ -74,7 +77,7 @@ function createEnvironmentGeometry() {
     return (seed - 1) / 2147483646
   }
 
-  for (let index = 0; index < 280; index += 1) {
+  for (let index = 0; index < count; index += 1) {
     const x = (random() - 0.5) * 15
     const y = (random() - 0.5) * 9
     const z = -random() * 9 - 1
@@ -98,8 +101,9 @@ function createSpatialGridGeometry() {
   return geometry
 }
 
-function ExperienceWorld({ motionState, reducedMotion }) {
+function ExperienceWorld({ motionState, reducedMotion, lite }) {
   const world = useRef(null)
+  const stage = useRef(null)
   const sculpture = useRef(null)
   const orbitGroup = useRef(null)
   const architecture = useRef(null)
@@ -109,10 +113,13 @@ function ExperienceWorld({ motionState, reducedMotion }) {
   const keyLight = useRef(null)
   const ambient = useRef(null)
   const elapsed = useRef(0)
+  const laidOut = useRef(false)
+  const pointerRef = useRef({ x: 0, y: 0 })
+  const layout = useRef({ scale: 1, anchorX: STAGE_ANCHOR_X, anchorY: 0, lateral: 1 })
   const coreGeometry = useMemo(() => createCoreGeometry(), [])
-  const orbitGeometryOne = useMemo(() => createOrbitGeometry(0.3), [])
-  const orbitGeometryTwo = useMemo(() => createOrbitGeometry(2.2), [])
-  const environmentGeometry = useMemo(() => createEnvironmentGeometry(), [])
+  const orbitGeometryOne = useMemo(() => createOrbitGeometry(0.3, lite), [lite])
+  const orbitGeometryTwo = useMemo(() => createOrbitGeometry(2.2, lite), [lite])
+  const environmentGeometry = useMemo(() => createEnvironmentGeometry(lite ? 120 : 280), [lite])
   const spatialGridGeometry = useMemo(() => createSpatialGridGeometry(), [])
   const chapterColors = useMemo(() => [
     new THREE.Color('#111a50'),
@@ -132,37 +139,46 @@ function ExperienceWorld({ motionState, reducedMotion }) {
   useFrame((state, delta) => {
     elapsed.current += delta
     const time = elapsed.current
-    const progress = motionState.current.progress
-    const pageProgress = reducedMotion ? 0 : motionState.current.pageProgress
-    const chapter = reducedMotion ? 0 : motionState.current.chapter
+    const motion = motionState.current
+    const pointer = pointerRef.current
+    pointer.x = THREE.MathUtils.damp(pointer.x, reducedMotion ? 0 : motion.pointerTarget.x, 3.2, delta)
+    pointer.y = THREE.MathUtils.damp(pointer.y, reducedMotion ? 0 : motion.pointerTarget.y, 3.2, delta)
+    const progress = motion.progress
+    const pageProgress = reducedMotion ? 0 : motion.pageProgress
+    const chapter = reducedMotion ? 0 : motion.chapter
     currentChapter.current = THREE.MathUtils.damp(currentChapter.current, chapter, 2.4, delta)
     const lowChapter = Math.floor(currentChapter.current)
     const highChapter = Math.min(chapterColors.length - 1, lowChapter + 1)
     const mix = currentChapter.current - lowChapter
     chapterTarget.current.copy(chapterColors[lowChapter]).lerp(chapterColors[highChapter], mix)
 
-    if (world.current) {
-      world.current.traverse((object) => {
-        if (object.isMesh && object.material && object.material.color && object.userData.chapterColor) {
-          object.material.color.lerp(chapterTarget.current, 1 - Math.exp(-delta * 1.5))
-        }
-      })
+    // Responsive framing: keep the sculpture fully in view on any aspect ratio. Snap on the
+    // first frame (and in reduced motion) so it never slides in from the desktop layout.
+    getStageLayout(state.size.width / Math.max(1, state.size.height), layout.current)
+    if (stage.current) {
+      const { scale, anchorX, anchorY } = layout.current
+      const rate = laidOut.current && !reducedMotion ? 5 : 1000
+      const nextScale = THREE.MathUtils.damp(stage.current.scale.x, scale, rate, delta)
+      stage.current.scale.setScalar(nextScale)
+      stage.current.position.x = THREE.MathUtils.damp(stage.current.position.x, anchorX - STAGE_ANCHOR_X * nextScale, rate, delta)
+      stage.current.position.y = THREE.MathUtils.damp(stage.current.position.y, anchorY, rate, delta)
+      laidOut.current = true
     }
 
     if (sculpture.current) {
       const targetScale = 1 + Math.max(0, progress - 0.28) * 0.48 - Math.max(0, progress - 0.82) * 0.12
       sculpture.current.scale.setScalar(THREE.MathUtils.damp(sculpture.current.scale.x, targetScale, 3, delta))
-      sculpture.current.position.x = 1.3 + Math.sin(pageProgress * Math.PI * 2) * 0.12
+      sculpture.current.position.x = STAGE_ANCHOR_X + Math.sin(pageProgress * Math.PI * 2) * 0.12
       sculpture.current.position.z = Math.sin(pageProgress * Math.PI * 4) * 0.08
       if (!reducedMotion) {
         sculpture.current.rotation.y = progress * Math.PI * 1.12 + pageProgress * 0.22 + time * 0.055
         sculpture.current.rotation.x = THREE.MathUtils.damp(
           sculpture.current.rotation.x,
-          state.pointer.y * 0.12 + Math.sin(time * 0.2) * 0.035 + Math.sin(pageProgress * Math.PI * 2) * 0.035,
+          pointer.y * 0.12 + Math.sin(time * 0.2) * 0.035 + Math.sin(pageProgress * Math.PI * 2) * 0.035,
           2,
           delta,
         )
-        sculpture.current.rotation.z = THREE.MathUtils.damp(sculpture.current.rotation.z, -state.pointer.x * 0.1, 2, delta)
+        sculpture.current.rotation.z = THREE.MathUtils.damp(sculpture.current.rotation.z, -pointer.x * 0.1, 2, delta)
         sculpture.current.position.y = Math.sin(time * 0.38) * 0.045
       }
 
@@ -176,9 +192,9 @@ function ExperienceWorld({ motionState, reducedMotion }) {
     }
 
     if (orbitGroup.current && !reducedMotion) {
-      orbitGroup.current.rotation.y = time * 0.035 + progress * 0.55 + pageProgress * 0.72 + state.pointer.x * 0.06
-      orbitGroup.current.rotation.x = Math.cos(time * 0.08) * 0.05 + state.pointer.y * 0.045 + Math.sin(pageProgress * Math.PI * 2) * 0.045
-      orbitGroup.current.position.x = 1.3 + Math.sin(pageProgress * Math.PI * 2 + 0.6) * 0.16
+      orbitGroup.current.rotation.y = time * 0.035 + progress * 0.55 + pageProgress * 0.72 + pointer.x * 0.06
+      orbitGroup.current.rotation.x = Math.cos(time * 0.08) * 0.05 + pointer.y * 0.045 + Math.sin(pageProgress * Math.PI * 2) * 0.045
+      orbitGroup.current.position.x = STAGE_ANCHOR_X + Math.sin(pageProgress * Math.PI * 2 + 0.6) * 0.16
       orbitGroup.current.position.z = Math.cos(pageProgress * Math.PI * 2) * 0.1
     }
 
@@ -188,10 +204,15 @@ function ExperienceWorld({ motionState, reducedMotion }) {
       architecture.current.scale.setScalar(0.82 + detail * 0.3 + Math.sin(pageProgress * Math.PI * 2) * 0.025)
       architecture.current.rotation.y = -progress * 0.25 + pageProgress * 0.2
       architecture.current.rotation.x = Math.sin(pageProgress * Math.PI * 2) * 0.04
-      architecture.current.position.x = 1.3 + Math.cos(pageProgress * Math.PI * 2) * 0.12
+      architecture.current.position.x = STAGE_ANCHOR_X + Math.cos(pageProgress * Math.PI * 2) * 0.12
       architecture.current.children.forEach((child, index) => {
+        // Each wireframe keeps its own hue and is graded toward the current chapter colour.
+        // (Lerping every frame toward the dark chapter colour would fade them to black.)
+        if (child.userData.chapterColor) {
+          if (!child.userData.baseColor) child.userData.baseColor = child.material.color.clone()
+          child.material.color.copy(child.userData.baseColor).lerp(chapterTarget.current, 0.3)
+        }
         child.material.opacity = (0.1 + detail * 0.28) * chapterFocus
-        child.material.transparent = true
         child.position.y = Math.sin(time * 0.18 + index * 0.7) * 0.04 + Math.sin(pageProgress * Math.PI * 2 + index) * 0.045
       })
     }
@@ -212,8 +233,8 @@ function ExperienceWorld({ motionState, reducedMotion }) {
 
     if (keyLight.current) {
       keyLight.current.color.copy(chapterTarget.current).lerp(keyLightColor, 0.58)
-      keyLight.current.position.x = 2.7 + state.pointer.x * 0.7 + Math.sin(pageProgress * Math.PI * 2) * 0.45
-      keyLight.current.position.y = 1.7 + state.pointer.y * 0.55 + Math.cos(pageProgress * Math.PI * 2) * 0.24
+      keyLight.current.position.x = 2.7 + pointer.x * 0.7 + Math.sin(pageProgress * Math.PI * 2) * 0.45
+      keyLight.current.position.y = 1.7 + pointer.y * 0.55 + Math.cos(pageProgress * Math.PI * 2) * 0.24
       keyLight.current.intensity = 22 + Math.sin(time * 0.4) * 2 + chapter * 0.35
     }
 
@@ -244,94 +265,96 @@ function ExperienceWorld({ motionState, reducedMotion }) {
         </lineSegments>
       </group>
 
-      <group ref={sculpture} position={[1.3, 0, 0]} rotation={[0.16, -0.3, 0.04]}>
-        <mesh geometry={coreGeometry}>
-          <meshPhysicalMaterial
-            vertexColors
-            metalness={0.78}
-            roughness={0.24}
-            clearcoat={0.85}
-            clearcoatRoughness={0.16}
-            iridescence={0.55}
-            iridescenceIOR={1.28}
-            iridescenceThicknessRange={[140, 420]}
-            emissive="#171e74"
-            emissiveIntensity={0.22}
-            flatShading
-          />
-        </mesh>
-        <mesh scale={1.015}>
-          <icosahedronGeometry args={[1.13, 1]} />
-          <meshBasicMaterial color="#b4c5ff" wireframe transparent opacity={0.12} />
-        </mesh>
-        <mesh position={[0.14, 0, 0]} scale={0.44} rotation={[0.3, 0.2, 0]}>
-          <octahedronGeometry args={[1, 1]} />
-          <meshPhysicalMaterial color="#dce8ff" metalness={0.55} roughness={0.12} emissive="#536fff" emissiveIntensity={0.6} clearcoat={1} />
-        </mesh>
-        <mesh position={[-0.14, 0, 0]} scale={0.25} rotation={[0.1, 0.4, 0.3]}>
-          <dodecahedronGeometry args={[1, 0]} />
-          <meshPhysicalMaterial color="#b5a6ff" metalness={0.75} roughness={0.2} emissive="#613ecb" emissiveIntensity={0.6} />
-        </mesh>
-        <mesh position={[0, 0.12, 0]} scale={0.3}>
-          <octahedronGeometry args={[1, 0]} />
-          <meshBasicMaterial color="#94d8ff" wireframe transparent opacity={0.68} />
-        </mesh>
-        <mesh position={[0, -0.12, 0]}>
-          <sphereGeometry args={[0.12, 12, 12]} />
-          <meshBasicMaterial color="#d7efff" />
-        </mesh>
-      </group>
+      {/* The stage carries the artwork; its position/scale adapt to the viewport aspect. */}
+      <group ref={stage}>
+        <group ref={sculpture} position={[STAGE_ANCHOR_X, 0, 0]} rotation={[0.16, -0.3, 0.04]}>
+          <mesh geometry={coreGeometry}>
+            <meshPhysicalMaterial
+              vertexColors
+              metalness={0.78}
+              roughness={0.24}
+              clearcoat={lite ? 0 : 0.85}
+              clearcoatRoughness={0.16}
+              iridescence={lite ? 0 : 0.55}
+              iridescenceIOR={1.28}
+              iridescenceThicknessRange={[140, 420]}
+              emissive="#171e74"
+              emissiveIntensity={lite ? 0.3 : 0.22}
+              flatShading
+            />
+          </mesh>
+          <mesh scale={1.015}>
+            <icosahedronGeometry args={[1.13, 1]} />
+            <meshBasicMaterial color="#b4c5ff" wireframe transparent opacity={0.12} />
+          </mesh>
+          <mesh position={[0.14, 0, 0]} scale={0.44} rotation={[0.3, 0.2, 0]}>
+            <octahedronGeometry args={[1, 1]} />
+            <meshPhysicalMaterial color="#dce8ff" metalness={0.55} roughness={0.12} emissive="#536fff" emissiveIntensity={0.6} clearcoat={lite ? 0 : 1} />
+          </mesh>
+          <mesh position={[-0.14, 0, 0]} scale={0.25} rotation={[0.1, 0.4, 0.3]}>
+            <dodecahedronGeometry args={[1, 0]} />
+            <meshPhysicalMaterial color="#b5a6ff" metalness={0.75} roughness={0.2} emissive="#613ecb" emissiveIntensity={0.6} />
+          </mesh>
+          <mesh position={[0, 0.12, 0]} scale={0.3}>
+            <octahedronGeometry args={[1, 0]} />
+            <meshBasicMaterial color="#94d8ff" wireframe transparent opacity={0.68} />
+          </mesh>
+          <mesh position={[0, -0.12, 0]}>
+            <sphereGeometry args={[0.12, 12, 12]} />
+            <meshBasicMaterial color="#d7efff" />
+          </mesh>
+        </group>
 
-      <group ref={orbitGroup} position={[1.3, 0, 0]}>
-        <mesh geometry={orbitGeometryOne} rotation={[0.34, 0.1, 0.36]}>
-          <meshStandardMaterial color="#a6baff" emissive="#455bff" emissiveIntensity={0.45} metalness={0.8} roughness={0.24} />
-        </mesh>
-        <mesh geometry={orbitGeometryTwo} rotation={[-0.52, -0.2, -0.42]} scale={1.12}>
-          <meshStandardMaterial color="#bb8dff" emissive="#6034cc" emissiveIntensity={0.32} metalness={0.75} roughness={0.3} />
-        </mesh>
-        <mesh position={[1.77, 0.1, 0.52]} rotation={[0.3, 0.6, 0.15]} scale={0.13}>
-          <octahedronGeometry args={[1, 0]} />
-          <meshStandardMaterial color="#a8c9ff" emissive="#4c76ff" emissiveIntensity={0.85} metalness={0.65} roughness={0.18} />
-        </mesh>
-      </group>
+        <group ref={orbitGroup} position={[STAGE_ANCHOR_X, 0, 0]}>
+          <mesh geometry={orbitGeometryOne} rotation={[0.34, 0.1, 0.36]}>
+            <meshStandardMaterial color="#a6baff" emissive="#455bff" emissiveIntensity={0.45} metalness={0.8} roughness={0.24} />
+          </mesh>
+          <mesh geometry={orbitGeometryTwo} rotation={[-0.52, -0.2, -0.42]} scale={1.12}>
+            <meshStandardMaterial color="#bb8dff" emissive="#6034cc" emissiveIntensity={0.32} metalness={0.75} roughness={0.3} />
+          </mesh>
+          <mesh position={[1.77, 0.1, 0.52]} rotation={[0.3, 0.6, 0.15]} scale={0.13}>
+            <octahedronGeometry args={[1, 0]} />
+            <meshStandardMaterial color="#a8c9ff" emissive="#4c76ff" emissiveIntensity={0.85} metalness={0.65} roughness={0.18} />
+          </mesh>
+        </group>
 
-      <group ref={architecture} position={[1.3, 0, -0.15]}>
-        <mesh position={[-0.8, 0.15, -0.5]} userData={{ chapterColor: true }}>
-          <boxGeometry args={[1.2, 0.72, 0.015]} />
-          <meshBasicMaterial color="#568cff" wireframe transparent opacity={0.2} />
-        </mesh>
-        <mesh position={[0.78, -0.2, -0.65]} userData={{ chapterColor: true }}>
-          <boxGeometry args={[0.72, 0.92, 0.015]} />
-          <meshBasicMaterial color="#9b74ff" wireframe transparent opacity={0.18} />
-        </mesh>
-        <mesh position={[0, 0.82, -0.7]} userData={{ chapterColor: true }}>
-          <boxGeometry args={[1.55, 0.42, 0.015]} />
-          <meshBasicMaterial color="#4db9ff" wireframe transparent opacity={0.16} />
-        </mesh>
-        <mesh position={[0.1, -0.84, -0.76]} userData={{ chapterColor: true }}>
-          <boxGeometry args={[1.5, 0.32, 0.015]} />
-          <meshBasicMaterial color="#aa7aff" wireframe transparent opacity={0.16} />
-        </mesh>
+        <group ref={architecture} position={[STAGE_ANCHOR_X, 0, -0.15]}>
+          <mesh position={[-0.8, 0.15, -0.5]} userData={{ chapterColor: true }}>
+            <boxGeometry args={[1.2, 0.72, 0.015]} />
+            <meshBasicMaterial color="#568cff" wireframe transparent opacity={0.2} />
+          </mesh>
+          <mesh position={[0.78, -0.2, -0.65]} userData={{ chapterColor: true }}>
+            <boxGeometry args={[0.72, 0.92, 0.015]} />
+            <meshBasicMaterial color="#9b74ff" wireframe transparent opacity={0.18} />
+          </mesh>
+          <mesh position={[0, 0.82, -0.7]} userData={{ chapterColor: true }}>
+            <boxGeometry args={[1.55, 0.42, 0.015]} />
+            <meshBasicMaterial color="#4db9ff" wireframe transparent opacity={0.16} />
+          </mesh>
+          <mesh position={[0.1, -0.84, -0.76]} userData={{ chapterColor: true }}>
+            <boxGeometry args={[1.5, 0.32, 0.015]} />
+            <meshBasicMaterial color="#aa7aff" wireframe transparent opacity={0.16} />
+          </mesh>
+        </group>
       </group>
     </group>
   )
 }
 
-function ExperienceScene({ motionState }) {
-  const [webglAvailable] = useState(() => {
-    const canvas = document.createElement('canvas')
-    return Boolean(window.WebGLRenderingContext && (canvas.getContext('webgl2') || canvas.getContext('webgl')))
-  })
-  const [reducedMotion, setReducedMotion] = useState(
-    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-  )
+function detectWebGL() {
+  if (!window.WebGLRenderingContext) return false
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('webgl2') || canvas.getContext('webgl')
+  if (!context) return false
+  // Release the probe context immediately; browsers cap the number of live GL contexts.
+  context.getExtension('WEBGL_lose_context')?.loseContext()
+  return true
+}
 
-  useEffect(() => {
-    const preference = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const updatePreference = () => setReducedMotion(preference.matches)
-    preference.addEventListener('change', updatePreference)
-    return () => preference.removeEventListener('change', updatePreference)
-  }, [])
+function ExperienceScene({ motionState }) {
+  const [webglAvailable] = useState(detectWebGL)
+  const [lite] = useState(() => getRenderTier() === 'lite')
+  const reducedMotion = useReducedMotion()
 
   if (!webglAvailable) return <SceneFallback />
 
@@ -339,12 +362,13 @@ function ExperienceScene({ motionState }) {
     <SceneBoundary>
       <Canvas
         className="environment-canvas"
-        camera={{ position: [0, 0, 5.2], fov: 36 }}
-        dpr={[0.65, 1.15]}
+        camera={{ position: [0, 0, BASE_CAMERA_Z], fov: 36 }}
+        dpr={lite ? [0.6, 0.9] : [0.65, 1.15]}
         frameloop={reducedMotion ? 'demand' : 'always'}
         gl={{ alpha: true, antialias: false, powerPreference: 'low-power' }}
       >
-        <ExperienceWorld motionState={motionState} reducedMotion={reducedMotion} />
+        <CameraRig motionState={motionState} reducedMotion={reducedMotion} />
+        <ExperienceWorld motionState={motionState} reducedMotion={reducedMotion} lite={lite} />
       </Canvas>
     </SceneBoundary>
   )

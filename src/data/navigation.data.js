@@ -1,8 +1,6 @@
 export const navigation = [
-  ['Services', '#services'],
   ['Work', '#work'],
+  ['Capabilities', '#capabilities'],
   ['Studio', '#about'],
-  ['Process', '#process'],
-  ['Principles', '#principles'],
   ['Contact', '#contact'],
 ]

@@ -6,7 +6,7 @@ import { alreadyBooted } from './boot.js'
 import { chapters } from './data.js'
 import { Assembler, Capabilities, CaseFiles, Ecosystem, Lab, Prelude, ProcessTimeline, Quality } from './RetroChapters.jsx'
 import { BootScreen, ChapterIndicator, CrtOverlay, Navigation, Toast } from './RetroChrome.jsx'
-import { AboutZoom, Contact, Convinced, Footer, Hero, Story } from './RetroSections.jsx'
+import { AboutZoom, Convinced, Footer, Hero, Story } from './RetroSections.jsx'
 import SkylineReel from './SkylineReel.jsx'
 import './retro.css'
 import './retro-chapters.css'
@@ -120,7 +120,6 @@ export default function RetroApp() {
         <Assembler reducedMotion={reducedMotion} />
         <Convinced reducedMotion={reducedMotion} />
         <SkylineReel reducedMotion={reducedMotion} />
-        <Contact reducedMotion={reducedMotion} />
       </main>
       <AmbientBackdrop reducedMotion={reducedMotion} />
       <Footer />

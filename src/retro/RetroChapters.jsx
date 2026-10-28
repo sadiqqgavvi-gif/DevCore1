@@ -290,7 +290,7 @@ export function CaseFiles() {
           <span className="cases__stamp">FILE 05</span>
           <h3>Have a real one?</h3>
           <p>The next file could be yours: a genuine brief, built for real people.</p>
-          <a className="button-cream" href="#contact">Start a project <ArrowRight size={15} /></a>
+          <a className="button-cream" href="#reel">Start a project <ArrowRight size={15} /></a>
         </aside>
       </div>
       <div className="cases__progress" aria-hidden="true"><i /></div>
@@ -835,7 +835,7 @@ export function Quality() {
       headline={{ line1: 'Quality Is', line2: 'Built In.' }}
       subtitle="Reliable systems, deliberate engineering, and thoughtful validation — built to perform beyond the first release."
       buttons={{
-        primary: { text: 'Start a Project', href: '#contact' },
+        primary: { text: 'Start a Project', href: '#reel' },
         secondary: { text: 'Our Approach', href: '#process' },
       }}
     >

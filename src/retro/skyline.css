@@ -125,7 +125,7 @@
 .reel__mail { font-family: var(--pixel); font-size: 19px; color: #9fe9ff; text-underline-offset: 4px; }
 .reel__mail:hover { color: var(--accent-b); }
 
-/* HUD: hint, skip link, timecode and a progress rule along the bottom edge. */
+/* HUD: hint, timecode and a progress rule along the bottom edge. */
 .reel__hud {
   position: absolute;
   inset: auto 0 0;
@@ -143,8 +143,6 @@
 .reel__hint { display: inline-flex; align-items: center; gap: 8px; color: var(--accent-b); }
 .reel__hint svg { animation: reel-nudge 1.6s ease-in-out infinite; }
 @keyframes reel-nudge { 50% { transform: translateY(4px); } }
-.reel__skip { color: inherit; text-underline-offset: 4px; }
-.reel__skip:hover, .reel__skip:focus-visible { color: var(--accent-b); }
 .reel__time { margin-left: auto; color: #9fe9ff; font-variant-numeric: tabular-nums; }
 .reel__bar { position: absolute; inset: auto 0 0; height: 2px; background: rgba(252, 249, 243, 0.08); }
 .reel__bar i { display: block; height: 100%; transform-origin: left; background: linear-gradient(90deg, var(--accent-b), #5fe3ff); box-shadow: 0 0 10px rgba(255, 179, 107, 0.6); }

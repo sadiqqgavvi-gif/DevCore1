@@ -4,7 +4,7 @@ export const navLinks = [
   ['About Us', '#about'],
   ['Services', '#services'],
   ['Process', '#process'],
-  ['Contact', '#contact'],
+  ['Contact', '#reel'],
 ]
 
 // Concept studies, not client commissions — the screen copy says so too.
@@ -102,7 +102,6 @@ export const chapters = [
   ['quality', '09', 'Quality & reliability'],
   ['assembler', '10', 'One coherent system'],
   ['reel', '11', 'Start a project'],
-  ['contact', '11', 'Start a project'],
 ]
 
 export const caseFiles = [

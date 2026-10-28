@@ -1,5 +1,5 @@
 import { Fragment, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, ArrowUpRight, Mail } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ArrowUpRight } from 'lucide-react'
 import { gsap, ScrollTrigger, useGSAP } from '../lib/gsap.js'
 import { EMAIL, houseRules, projects } from './data.js'
 import { OPEN_CASE_EVENT } from './events.js'
@@ -271,83 +271,6 @@ export function Convinced({ reducedMotion }) {
       </div>
       <span className="convinced__rule" aria-hidden="true" />
       <span className="convinced__spot" aria-hidden="true" />
-    </section>
-  )
-}
-
-function RetroPhone() {
-  return (
-    <svg viewBox="0 0 120 120" className="retro-phone" aria-hidden="true">
-      <rect x="14" y="58" width="92" height="46" rx="10" fill="#d9cdb5" />
-      <rect x="22" y="66" width="76" height="30" rx="6" fill="#c3b69c" />
-      <path d="M10 44c0-14 22-22 50-22s50 8 50 22v8c0 4-3 6-7 6H86c-4 0-6-2-6-6v-6H40v6c0 4-2 6-6 6H17c-4 0-7-2-7-6z" fill="#efe6d2" />
-      {[0, 1, 2].map((row) => [0, 1, 2].map((col) => <rect key={`${row}${col}`} x={38 + col * 16} y={70 + row * 8} width="12" height="5" rx="1.5" fill="#2a2522" />))}
-    </svg>
-  )
-}
-
-export function Contact({ reducedMotion }) {
-  const sectionRef = useRef(null)
-  const [sent, setSent] = useState(false)
-
-  useGSAP(() => {
-    if (reducedMotion) return
-    // The closing spotlight settles down onto the title as the page reaches its end.
-    gsap.fromTo('.contact__spot', { yPercent: -30, scale: 1.25 }, { yPercent: 0, scale: 1, ease: 'none', scrollTrigger: { trigger: sectionRef.current, start: 'top bottom', end: 'top top', scrub: 0.8 } })
-    gsap.fromTo('.contact__cols > *', { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.12, duration: 0.7, ease: 'power3.out', scrollTrigger: { trigger: '.contact__cols', start: 'top 85%', once: true } })
-    gsap.fromTo('.newbiz', { rotateX: -70, autoAlpha: 0, transformOrigin: '50% 0%' }, { rotateX: 0, autoAlpha: 1, duration: 0.8, ease: 'power3.out', scrollTrigger: { trigger: '.newbiz', start: 'top 90%', once: true } })
-  }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
-
-  function handleSubmit(event) {
-    event.preventDefault()
-    const data = new FormData(event.currentTarget)
-    const name = String(data.get('name') || '').trim()
-    const email = String(data.get('email') || '').trim()
-    const message = String(data.get('message') || '').trim()
-    const subject = encodeURIComponent(`Project enquiry from ${name}`)
-    const body = encodeURIComponent(`${message}\n\n${name}\n${email}`)
-    window.location.href = `mailto:${EMAIL}?subject=${subject}&body=${body}`
-    setSent(true)
-  }
-
-  return (
-    <section className="contact" id="contact" ref={sectionRef} aria-labelledby="contact-heading">
-      <div className="contact__spot" aria-hidden="true" />
-      <p className="kicker reveal">Chapter 11 — The enquiry</p>
-      <h2 className="glow contact__title reveal" id="contact-heading" aria-label="Have a good one in mind?">
-        <span aria-hidden="true"><span>Have a good one</span></span>
-        <span aria-hidden="true"><span><em>in mind?</em></span></span>
-      </h2>
-      <p className="contact__lede reveal">Tell us what you&rsquo;re thinking about. We&rsquo;ll take it from there, thoughtfully and without the hard sell.</p>
-      <div className="contact__cols">
-        <div>
-          <h3>General Enquiries</h3>
-          <a href={`mailto:${EMAIL}`}>{EMAIL}</a>
-          <a href={`mailto:${EMAIL}?subject=Book%20a%20call`}>Book a call</a>
-        </div>
-        <form className="enquiry" onSubmit={handleSubmit}>
-          <div className="enquiry__bar"><span>ENQUIRY.TXT</span></div>
-          <label htmlFor="enquiry-name">NAME<input id="enquiry-name" name="name" autoComplete="name" required /></label>
-          <label htmlFor="enquiry-email">EMAIL<input id="enquiry-email" name="email" type="email" autoComplete="email" required /></label>
-          <label htmlFor="enquiry-message">WHAT ARE YOU MAKING?<textarea id="enquiry-message" name="message" rows="3" required /></label>
-          <button type="submit"><Mail size={15} /> Open email to send</button>
-          <p aria-live="polite">{sent ? 'Your email app should open with the message ready. Nothing was sent automatically.' : 'This does not send anything by itself: it opens your email app with the message filled in. Nothing is stored here.'}</p>
-        </form>
-        <div>
-          <h3>On This Page</h3>
-          <a href="#work">Case Files</a>
-          <a href="#services">What We Build</a>
-          <a href="#process">How We Work</a>
-          <a href="#quality">The Fine Print</a>
-        </div>
-      </div>
-      <div className="newbiz">
-        <RetroPhone />
-        <div>
-          <h3>New business</h3>
-          <p>Reach out today for new project enquiries at <a href={`mailto:${EMAIL}?subject=New%20business`}>{EMAIL}</a></p>
-        </div>
-      </div>
     </section>
   )
 }

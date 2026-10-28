@@ -315,7 +315,7 @@ html.is-booting .chapter { opacity: 0; }
   line-height: 1.06;
   text-wrap: balance;
 }
-.prelude__beat em, .assembler em, .lab h2 em, .caps h2 em, .contact__title em { color: #ffd2a1; font-style: italic; }
+.prelude__beat em, .assembler em, .lab h2 em, .caps h2 em { color: #ffd2a1; font-style: italic; }
 .prelude__meter { position: absolute; z-index: 2; right: var(--gutter); top: 30%; width: 2px; height: 40%; background: rgba(252, 249, 243, 0.15); }
 .prelude__meter i { display: block; height: 100%; transform-origin: top; background: linear-gradient(var(--accent-a), var(--accent-b)); }
 .prelude.is-static { height: auto; }
@@ -744,15 +744,7 @@ html.is-booting .chapter { opacity: 0; }
 .story__statement > span:nth-child(3) { padding-left: 24vw; }
 .story__statement em { color: #a8432d; }
 
-/* ---------- J. Contact close + footer brand moment ---------- */
-
-.contact .kicker { position: relative; }
-.contact__title { position: relative; font-size: clamp(54px, 9vw, 150px); font-weight: 500; line-height: 1; }
-.contact__title.reveal { opacity: 1; transform: none; }
-.contact__title > span { display: block; overflow: hidden; padding-bottom: 0.08em; }
-.contact__title > span > span { display: inline-block; transform: translateY(105%); transition: transform 1s cubic-bezier(0.2, 0.75, 0.2, 1); }
-.contact__title > span:nth-child(2) > span { transition-delay: 0.12s; }
-.contact__title.is-visible > span > span { transform: none; }
+/* ---------- J. Footer brand moment ---------- */
 
 .footer__wordmark {
   grid-column: 1 / -1;
@@ -854,5 +846,5 @@ html.is-booting .chapter { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .cases__hint, .chapter__num, .chapter__name, .case-dialog[open], .lab__panel, .pt-state > * { animation: none; }
-  .contact__title > span > span, .footer__wordmark span { transform: none; opacity: 1; transition: none; }
+  .footer__wordmark span { transform: none; opacity: 1; transition: none; }
 }

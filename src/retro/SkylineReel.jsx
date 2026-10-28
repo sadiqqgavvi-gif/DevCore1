@@ -183,7 +183,7 @@ export default function SkylineReel({ reducedMotion }) {
         <div className="reel__open">
           <p className="kicker">Chapter 11 — Start a project</p>
           <h2 id="reel-title" className="glow">Picture what&rsquo;s next.</h2>
-          <p className="reel__lede">One last reel before the enquiry form. Scroll to roll it.</p>
+          <p className="reel__lede">One last reel. Scroll to roll it.</p>
         </div>
 
         <p className="reel__mark">
@@ -208,14 +208,13 @@ export default function SkylineReel({ reducedMotion }) {
           <h3>Start something extraordinary.</h3>
           <p>Bring the idea. We&rsquo;ll design and engineer it into a product people can rely on.</p>
           <div className="reel__actions">
-            <a className="button-cream" href="#contact">Start a project <ArrowRight size={15} /></a>
+            <a className="button-cream" href={`mailto:${EMAIL}?subject=${encodeURIComponent('Project enquiry')}`}>Start a project <ArrowRight size={15} /></a>
             <a className="reel__mail" href={`mailto:${EMAIL}`}>{EMAIL}</a>
           </div>
         </div>
 
         <div className="reel__hud">
           <span className="reel__hint" aria-hidden="true"><ArrowDown size={14} /> Scroll to roll</span>
-          <a className="reel__skip" href="#contact">Skip to the enquiry</a>
           <span className="reel__time" ref={timeRef} aria-hidden="true">REEL 11</span>
           <span className="reel__bar" aria-hidden="true"><i /></span>
         </div>

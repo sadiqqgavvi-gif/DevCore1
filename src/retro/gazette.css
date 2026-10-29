@@ -1,0 +1,163 @@
+/* ---------- 04 · The DevCore Gazette: an editorial spread around a liquid Fig. 1 ----------
+   Dark print, cream ink, amber accents, hairline rules and faint newspaper columns.
+   Desktop: the sculpture sits in a sticky stage (CSS, not a scroll pin) beside the articles.
+   Phones and tablets: one column, the sculpture as a full-width figure. */
+
+.gazette {
+  --gz-bg: #0b090c;
+  --gz-ink: #f3ead9;
+  --gz-dim: rgba(243, 234, 217, 0.72);
+  --gz-rule: rgba(243, 234, 217, 0.16);
+  --gz-accent: #ff9f5a;
+  position: relative;
+  overflow-x: clip;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(255, 150, 80, 0.08), transparent 70%),
+    var(--gz-bg);
+  color: var(--gz-ink);
+}
+/* Faint column rules, like an unprinted broadsheet. */
+.gazette::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, rgba(243, 234, 217, 0.03) 0 1px, transparent 1px calc(100% / 6));
+  pointer-events: none;
+}
+
+/* The rising sheet in About Us is the top of this page, so it shares its print. */
+.about-zoom__sheet {
+  background: linear-gradient(180deg, #17121a, var(--gz-bg, #0b090c) 22%);
+  box-shadow: 0 -1px 0 rgba(255, 190, 130, 0.35), 0 -30px 70px rgba(0, 0, 0, 0.45);
+}
+
+/* Intro */
+.gz-intro { position: relative; max-width: 1320px; margin: 0 auto; padding: 72px var(--gutter) clamp(60px, 10vh, 110px); text-align: center; }
+.gz-masthead {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 0;
+  font-family: var(--pixel);
+  font-size: 17px;
+  letter-spacing: 0.12em;
+  color: var(--gz-dim);
+}
+.gz-masthead > span:first-child { text-align: left; }
+.gz-masthead > span:last-child { text-align: right; }
+.gz-masthead::before, .gz-masthead::after { content: ''; position: absolute; left: 0; right: 0; transform: scaleX(var(--rule, 1)); }
+.gz-masthead::before { top: 0; border-top: 3px double rgba(243, 234, 217, 0.45); transform-origin: left; }
+.gz-masthead::after { bottom: 0; border-bottom: 1px solid rgba(243, 234, 217, 0.35); transform-origin: right; }
+.gz-masthead strong {
+  font-family: var(--serif);
+  font-size: clamp(26px, 3vw, 40px);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--gz-accent);
+  text-shadow: 0 0 24px rgba(255, 150, 80, 0.45);
+}
+.gz-edition { margin: 22px 0 clamp(34px, 6vh, 64px); font-family: var(--pixel); font-size: 16px; letter-spacing: 0.2em; color: rgba(243, 234, 217, 0.6); }
+.gz-title { max-width: 1200px; margin: 0 auto; font-size: clamp(44px, 7vw, 124px); font-weight: 500; line-height: 1.02; letter-spacing: -0.01em; text-wrap: balance; }
+.gz-title .word { display: inline-block; overflow: hidden; padding-bottom: 0.08em; vertical-align: top; }
+.gz-title .word > span { display: inline-block; }
+
+/* Feature spread */
+.gz-spread { position: relative; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(32px, 6vw, 110px); max-width: 1400px; margin: 0 auto; padding: 0 var(--gutter); }
+.gz-stage {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: grid;
+  place-items: center;
+  height: 100vh;
+  height: 100svh;
+  margin: 0;
+}
+.gz-stage__halo { position: absolute; width: min(46vw, 80vh); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(255, 150, 80, 0.16), transparent 65%); pointer-events: none; }
+/* The sculpture and its labels share one square box, so the labels always sit around it. */
+.gz-figure { position: relative; width: min(100%, 80vh, 760px); aspect-ratio: 1; }
+.gz-sculpture { position: absolute; inset: 0; }
+.gz-fig__label { position: absolute; font-family: var(--pixel); font-size: 17px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gz-dim); pointer-events: none; }
+.gz-fig__label--design { left: 4%; top: 14%; }
+.gz-fig__label--engineering { right: 2%; bottom: 14%; }
+.gz-fig__label--core { left: 50%; bottom: 4%; translate: -50% 0; color: var(--gz-accent); }
+.gz-stage figcaption { position: absolute; left: 0; right: 0; bottom: 6vh; display: grid; gap: 6px; justify-items: center; font-size: 15px; font-style: italic; color: rgba(243, 234, 217, 0.62); text-align: center; }
+.gz-fig__note { font-family: 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive; font-size: 18px; font-style: normal; color: var(--gz-accent); transform: rotate(-3deg); }
+
+.gz-articles { display: grid; gap: clamp(64px, 16vh, 180px); padding: 22vh 0 26vh; }
+.gz-article { max-width: 560px; }
+.gz-article__no { margin-bottom: 10px; font-family: var(--pixel); font-size: 16px; letter-spacing: 0.16em; color: var(--gz-accent); }
+.gz-article h3 { margin-bottom: 14px; padding-top: 16px; border-top: 1px solid var(--gz-rule); font-size: clamp(30px, 3vw, 46px); font-weight: 500; line-height: 1.08; }
+.gz-article p { font-size: 18px; line-height: 1.65; color: var(--gz-dim); }
+.gz-dropcap::first-letter { float: left; margin: 8px 12px 0 0; font-size: 4.6em; font-weight: 700; line-height: 0.78; color: var(--gz-ink); }
+.gz-quote { margin: 0; padding: 30px 0; border-top: 1px solid var(--gz-rule); border-bottom: 1px solid var(--gz-rule); }
+.gz-quote p { font-size: clamp(34px, 3.6vw, 56px); font-style: italic; line-height: 1.1; color: var(--gz-ink); text-shadow: 0 0 34px rgba(255, 150, 80, 0.25); }
+.gz-quote cite { display: block; margin-top: 14px; font-family: var(--pixel); font-size: 16px; font-style: normal; letter-spacing: 0.08em; color: var(--gz-accent); }
+.gz-brief { padding: 22px 24px; border: 1px solid var(--gz-rule); border-radius: 14px; background: linear-gradient(180deg, rgba(243, 234, 217, 0.05), rgba(243, 234, 217, 0.015)); }
+.gz-brief h4 { font-family: var(--pixel); font-size: 18px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gz-accent); }
+.gz-brief ul { margin: 8px 0 0; padding: 0; list-style: none; }
+.gz-brief li { padding: 10px 0; border-bottom: 1px dotted var(--gz-rule); font-size: 17px; }
+.gz-brief li:last-child { border-bottom: 0; }
+
+/* Statement */
+.gz-statement { position: relative; max-width: 1320px; margin: clamp(40px, 8vh, 100px) auto 0; padding: 0 var(--gutter); font-size: clamp(52px, 10vw, 178px); font-weight: 500; line-height: 0.98; }
+.gz-statement > span { display: block; overflow: hidden; padding-bottom: 0.06em; }
+.gz-statement > span > span { display: inline-block; }
+.gz-statement > span:nth-child(2) { padding-left: 12vw; }
+.gz-statement > span:nth-child(3) { padding-left: 24vw; }
+.gz-statement em { color: var(--gz-accent); text-shadow: 0 0 40px rgba(255, 150, 80, 0.3); }
+
+/* Studio philosophy */
+.gz-rules { position: relative; max-width: 1320px; margin: 0 auto; padding: clamp(80px, 14vh, 150px) var(--gutter) clamp(100px, 18vh, 200px); transform-origin: 50% 0; }
+.gz-rules__head { display: flex; align-items: center; gap: 16px; margin-bottom: 34px; font-size: clamp(34px, 4vw, 58px); font-weight: 500; }
+.gz-rules__head span { padding: 4px 10px 2px; border: 1px solid var(--gz-accent); font-family: var(--pixel); font-size: 15px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gz-accent); }
+.gz-rules ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 0; padding: 0; list-style: none; }
+.gz-rules li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 22px;
+  padding: 28px;
+  border: 1px solid var(--gz-rule);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(243, 234, 217, 0.045), rgba(243, 234, 217, 0.01));
+  transition: border-color 0.35s, background-color 0.35s;
+}
+.gz-rules li:hover { border-color: rgba(255, 159, 90, 0.45); background-color: rgba(255, 159, 90, 0.04); }
+.gz-rules b { min-width: 56px; font-size: 40px; font-style: italic; font-weight: 600; line-height: 1; color: var(--gz-accent); }
+.gz-rules h4 { margin-bottom: 8px; font-size: 24px; font-weight: 600; }
+.gz-rules p { font-size: 16.5px; line-height: 1.55; color: var(--gz-dim); }
+/* Hand-off into What We Build. */
+.gz-exit { position: absolute; left: 0; right: 0; bottom: 0; height: 16vh; background: linear-gradient(transparent, #07060d); pointer-events: none; }
+
+@media (max-width: 999px) {
+  .gz-intro { padding-top: 56px; }
+  .gz-spread { grid-template-columns: 1fr; gap: 0; }
+  .gz-stage { position: relative; height: auto; padding: 24px 0 40px; }
+  .gz-stage__halo { width: 92%; }
+  .gz-figure { width: min(100%, 560px); }
+  .gz-stage figcaption { position: static; margin-top: 8px; }
+  .gz-articles { gap: 64px; padding: 24px 0 72px; }
+  .gz-article { max-width: none; }
+}
+
+@media (max-width: 760px) {
+  .gz-masthead { grid-template-columns: 1fr; gap: 8px; text-align: center; }
+  .gz-masthead > span:first-child, .gz-masthead > span:last-child { text-align: center; font-size: 14px; }
+  .gz-edition { font-size: 14px; letter-spacing: 0.14em; }
+  .gz-title { font-size: clamp(36px, 10.4vw, 56px); }
+  .gz-fig__label { font-size: 14px; }
+  .gz-article p { font-size: 17px; }
+  .gz-statement > span:nth-child(2) { padding-left: 6vw; }
+  .gz-statement > span:nth-child(3) { padding-left: 12vw; }
+  .gz-rules ol { grid-template-columns: 1fr; }
+  .gz-rules li { padding: 22px; gap: 16px; }
+  .gz-rules b { min-width: 44px; font-size: 32px; }
+  .gz-rules h4 { font-size: 21px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gz-rules li { transition: none; }
+}

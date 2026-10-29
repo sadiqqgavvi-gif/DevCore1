@@ -1,14 +1,14 @@
 import { lazy, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, ArrowUpRight, ShieldCheck, X } from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ShieldCheck, X } from 'lucide-react'
 import AnimatedShaderHero from '../components/ui/AnimatedShaderHero.jsx'
 import { gsap, ScrollTrigger, useGSAP } from '../lib/gsap.js'
 import {
-  capabilities, caseFiles, EMAIL, labLayers, processStages, projects, qualityPrinciples, techGroups, tools,
+  capabilities, caseFiles, EMAIL, labLayers, projects, qualityPrinciples,
 } from './data.js'
-import { OPEN_CASE_EVENT } from './events.js'
-import { DESKTOP_MOTION, MOBILE_LANDSCAPE, MOBILE_PORTRAIT, PROCESS_FLOW, PROCESS_PINNED, roomForPinnedScene } from './motionModes.js'
+import { DESKTOP_MOTION, MOBILE_LANDSCAPE, MOBILE_PORTRAIT, roomForPinnedScene } from './motionModes.js'
 import { LogoMark } from './RetroChrome.jsx'
 import SceneMount from './scenes/SceneMount.jsx'
+import { scrollDepth } from './scrollDepth.js'
 
 const PreludeScene = lazy(() => import('./scenes/PreludeScene.jsx'))
 const AssemblerScene = lazy(() => import('./scenes/AssemblerScene.jsx'))
@@ -146,7 +146,20 @@ function CaseDialog({ index, onClose }) {
 }
 
 
-const nearestIndex = (points, value) => points.reduce((best, point, index) => (Math.abs(point - value) < Math.abs(points[best] - value) ? index : best), 0)
+const clamp01 = (value) => Math.min(1, Math.max(0, value))
+const smooth = (from, to, value) => {
+  const t = clamp01((value - from) / (to - from))
+  return t * t * (3 - 2 * t)
+}
+const mix = (a, b, t) => a + (b - a) * t
+
+// Works wheel timeline, as shares of the pinned scroll: the files hold as a ring, fold into a
+// vertical drum, turn through each file, then the drum steps back for the closing panel.
+const WHEEL_RING_END = 0.1
+const WHEEL_DRUM_START = 0.24
+const WHEEL_DRUM_END = 0.84
+const WHEEL_STEP = 36
+const WHEEL_SCREENS = 3.6
 
 export function CaseFiles() {
   const sectionRef = useRef(null)
@@ -157,101 +170,145 @@ export function CaseFiles() {
   // 0 = intro panel, 1..n = case files, n + 1 = outro panel.
   const [panel, setPanel] = useState(0)
 
-  useEffect(() => {
-    const open = (event) => setOpenIndex(event.detail)
-    window.addEventListener(OPEN_CASE_EVENT, open)
-    return () => window.removeEventListener(OPEN_CASE_EVENT, open)
-  }, [])
-
   useGSAP(() => {
     const section = sectionRef.current
-    const track = section.querySelector('.cases__track')
+    const cases = gsap.utils.toArray('.case', section)
+    const visuals = cases.map((card) => card.querySelector('.case-visual'))
+    const intro = section.querySelector('.cases__intro')
+    const outro = section.querySelector('.cases__outro')
+    const count = cases.length
     const mm = gsap.matchMedia()
 
-    // Desktop and tall phones share the pinned horizontal journey; only its scale and
-    // movement distances change. The layout class is applied before anything is measured.
-    const horizontal = (compact) => {
-      section.classList.add('is-hscroll')
-      section.classList.toggle('is-compact', compact)
-      const distance = () => Math.max(0, track.scrollWidth - window.innerWidth)
-      // Progress at which each panel is centred: used for snapping, the HUD and the buttons.
+    const setPanelIndex = (next) => {
+      if (next === panelRef.current) return
+      panelRef.current = next
+      setPanel(next)
+    }
+
+    // Desktop: the Works wheel. Pinned for a fixed distance; native scrolling drives it.
+    const wheel = () => {
+      section.classList.add('is-wheel')
+      const stops = [0, ...cases.map((_, index) => WHEEL_DRUM_START + (index / (count - 1)) * (WHEEL_DRUM_END - WHEEL_DRUM_START)), 1]
+      pointsRef.current = stops
+      let geo = null
       const measure = () => {
-        const d = distance() || 1
-        pointsRef.current = Array.from(track.children, (child) => gsap.utils.clamp(0, 1, (child.offsetLeft + child.offsetWidth / 2 - window.innerWidth / 2) / d))
+        const stage = section.querySelector('.cases__stage').getBoundingClientRect()
+        const cardW = visuals[0].offsetWidth
+        const cardH = visuals[0].offsetHeight
+        geo = { ring: Math.min(stage.height * 0.36, stage.width * 0.34), drum: cardH * 1.25, cardW, cardH }
       }
-      const slide = gsap.to(track, {
-        x: () => -distance(),
+      const render = (p) => {
+        if (!geo) measure()
+        const morph = smooth(WHEEL_RING_END, WHEEL_DRUM_START, p)
+        const turn = gsap.utils.clamp(0, 1, (p - WHEEL_DRUM_START) / (WHEEL_DRUM_END - WHEEL_DRUM_START)) * (count - 1)
+        const recede = smooth(WHEEL_DRUM_END, 1, p)
+        const spin = p * 40
+        visuals.forEach((visual, index) => {
+          // Ring position: evenly spaced, slowly turning while the intro reads.
+          const angle = ((index / count) * 360 - 90 + spin) * (Math.PI / 180)
+          const ringX = Math.cos(angle) * geo.ring
+          const ringY = Math.sin(angle) * geo.ring
+          // Drum position: each file sits on a cylinder turning around the horizontal axis.
+          const theta = (index - turn) * WHEEL_STEP
+          const rad = theta * (Math.PI / 180)
+          const drumY = Math.sin(rad) * geo.drum
+          const drumZ = (Math.cos(rad) - 1) * geo.drum
+          const x = mix(ringX, 0, morph)
+          const y = mix(ringY, drumY, morph)
+          const z = mix(0, drumZ, morph) - recede * 160
+          const rotateX = mix(0, -theta, morph)
+          const facing = Math.cos(Math.min(Math.abs(rad), Math.PI / 2))
+          // Files off the front swing a few degrees and sit slightly smaller, so the drum reads
+          // as depth rather than a flat list.
+          const rotateY = mix(0, Math.sin(Math.max(-1, Math.min(1, rad))) * -9, morph)
+          const scale = mix(0.46, 1, morph) * mix(1, 0.93 + 0.07 * facing, morph) * (1 - recede * 0.12)
+          const opacity = mix(0.95, Math.max(0, facing * 1.15 - 0.15), morph) * (1 - recede * 0.55)
+          visual.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, ${z.toFixed(1)}px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale(${scale.toFixed(3)})`
+          visual.style.opacity = opacity.toFixed(3)
+          visual.style.zIndex = String(Math.round(100 + mix(index, facing * 50, morph)))
+        })
+        intro.style.opacity = (1 - smooth(WHEEL_RING_END, WHEEL_RING_END + 0.08, p)).toFixed(3)
+        section.style.setProperty('--cases-progress', p.toFixed(3))
+        // The copy beside the drum follows the file in front.
+        const active = p < (WHEEL_RING_END + WHEEL_DRUM_START) / 2 ? 0 : p > (WHEEL_DRUM_END + 1) / 2 ? count + 1 : Math.round(turn) + 1
+        cases.forEach((card, index) => card.classList.toggle('is-active', active === index + 1))
+        outro.classList.toggle('is-active', active === count + 1)
+        setPanelIndex(active)
+      }
+      const state = { p: 0 }
+      const tween = gsap.to(state, {
+        p: 1,
         ease: 'none',
+        onUpdate: () => render(state.p),
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: () => `+=${distance() * (compact ? 1.15 : 1)}`,
+          end: () => `+=${Math.round(window.innerHeight * WHEEL_SCREENS)}`,
           pin: true,
-          scrub: compact ? 0.5 : 0.7,
+          scrub: 0.6,
           invalidateOnRefresh: true,
-          onRefreshInit: measure,
-          snap: { snapTo: (value, self) => pointsRef.current[nearestIndex(pointsRef.current, self?.progress ?? value)] ?? value, inertia: false, duration: { min: 0.2, max: 0.55 }, delay: 0.1, ease: 'power2.out' },
-          onUpdate: (self) => {
-            section.style.setProperty('--cases-progress', self.progress.toFixed(3))
-            const next = nearestIndex(pointsRef.current, self.progress)
-            if (next !== panelRef.current) {
-              panelRef.current = next
-              setPanel(next)
-            }
-          },
+          onRefresh: () => { measure(); render(state.p) },
+          snap: { snapTo: stops, inertia: false, duration: { min: 0.25, max: 0.6 }, delay: 0.1, ease: 'power2.out' },
         },
       })
-      triggerRef.current = slide.scrollTrigger
+      triggerRef.current = tween.scrollTrigger
       measure()
-
-      const tilt = compact ? 0.5 : 1
-      gsap.utils.toArray('.case', section).forEach((card) => {
-        const sweep = { trigger: card, containerAnimation: slide, start: 'left right', end: 'right left', scrub: true }
-        gsap.fromTo(card.querySelector('.case-visual'),
-          { rotateY: 16 * tilt, rotateX: 4 * tilt, scale: 0.9, z: -60 * tilt },
-          { rotateY: -12 * tilt, rotateX: -2 * tilt, scale: 1, z: 0, ease: 'none', scrollTrigger: sweep })
-        // Copy arrives a beat after the visual, line by line, then holds while the card is centred.
-        gsap.fromTo(card.querySelectorAll('.case__copy > *'),
-          { x: 70 * tilt, opacity: 0 },
-          { x: 0, opacity: 1, stagger: 0.05, ease: 'power2.out', scrollTrigger: { trigger: card, containerAnimation: slide, start: 'left 85%', end: 'left 30%', scrub: true } })
-      })
+      render(0)
       return () => {
-        section.classList.remove('is-hscroll', 'is-compact')
+        section.classList.remove('is-wheel')
+        cases.forEach((card) => card.classList.remove('is-active'))
+        outro.classList.remove('is-active')
+        visuals.forEach((visual) => visual.removeAttribute('style'))
+        intro.style.removeProperty('opacity')
+        section.style.removeProperty('--cases-progress')
         triggerRef.current = null
       }
     }
 
-    // Short or landscape phones: a pinned card would not fit, so each file gets its own entrance.
-    const stacked = () => {
-      gsap.utils.toArray('.case', section).forEach((card) => {
-        gsap.timeline({ scrollTrigger: { trigger: card, start: 'top 80%', once: true } })
-          .fromTo(card.querySelector('.case-visual'), { rotateX: 18, y: 40, autoAlpha: 0 }, { rotateX: 0, y: 0, autoAlpha: 1, duration: 0.8, ease: 'power3.out' })
-          .fromTo(card.querySelectorAll('.case__copy > *'), { y: 20, autoAlpha: 0 }, { y: 0, autoAlpha: 1, stagger: 0.06, duration: 0.5 }, 0.2)
+    // Tablets, phones and short screens: a stacked list. Each file rises in as it arrives and
+    // settles back as it leaves, tied to the scroll position. Tablets get a gentle 3D tilt;
+    // phones only translate, scale and fade, over shorter distances.
+    const stacked = (light) => {
+      const copies = cases.map((card) => card.querySelector('.case__copy'))
+      const lift = light ? 34 : 64
+      const shrink = light ? 0.04 : 0.06
+      const tilt = light ? 0 : 10
+      scrollDepth(cases, (index, enter, exit) => {
+        const away = 1 - enter
+        const visual = visuals[index]
+        visual.style.transform = `translate3d(0, ${(away * lift - exit * lift * 0.5).toFixed(1)}px, 0)${tilt ? ` rotateX(${(away * tilt - exit * tilt * 0.6).toFixed(2)}deg)` : ''} scale(${(1 - away * shrink - exit * shrink * 0.6).toFixed(4)})`
+        visual.style.opacity = (1 - away * 0.6 - exit * 0.35).toFixed(3)
+        copies[index].style.transform = `translate3d(0, ${(away * lift * 0.5 - exit * lift * 0.25).toFixed(1)}px, 0)`
+        copies[index].style.opacity = (1 - away * 0.8 - exit * 0.3).toFixed(3)
+      })
+      return () => [...visuals, ...copies].forEach((element) => {
+        element.style.removeProperty('transform')
+        element.style.removeProperty('opacity')
       })
     }
 
-    mm.add(DESKTOP_MOTION, () => horizontal(false))
-    mm.add(MOBILE_PORTRAIT, () => (roomForPinnedScene() ? horizontal(true) : stacked()))
-    mm.add(MOBILE_LANDSCAPE, stacked)
+    mm.add(DESKTOP_MOTION, () => (roomForPinnedScene() ? wheel() : stacked(false)))
+    // Phones and tablets (portrait) run the same wheel; CSS stacks the drum above the copy.
+    mm.add(MOBILE_PORTRAIT, wheel)
+    mm.add(MOBILE_LANDSCAPE, () => stacked(true))
     return () => mm.revert()
   }, { scope: sectionRef })
 
-  const goToPanel = (index) => {
+  const scrollToStop = (index, behavior) => {
     const st = triggerRef.current
-    const target = gsap.utils.clamp(1, projects.length, index)
-    if (!st) {
-      document.getElementById(`case-${projects[target - 1].number}`)?.scrollIntoView({ block: 'center' })
-      return
-    }
-    window.scrollTo({ top: st.start + (st.end - st.start) * (pointsRef.current[target] ?? 0), behavior: 'smooth' })
+    if (!st) return false
+    window.scrollTo({ top: st.start + (st.end - st.start) * (pointsRef.current[index] ?? 0), behavior })
+    return true
   }
 
-  // Keyboard focus inside an off-screen card moves the journey to that card.
+  const goToPanel = (index) => {
+    const target = gsap.utils.clamp(1, projects.length, index)
+    if (!scrollToStop(target, 'smooth')) document.getElementById(`case-${projects[target - 1].number}`)?.scrollIntoView({ block: 'center' })
+  }
+
+  // Keyboard focus inside a file that is not in front turns the wheel to that file.
   const followFocus = (index) => {
-    const st = triggerRef.current
-    sectionRef.current.scrollLeft = 0
-    if (!st || index === panelRef.current) return
-    window.scrollTo({ top: st.start + (st.end - st.start) * (pointsRef.current[index] ?? 0), behavior: 'auto' })
+    if (index !== panelRef.current) scrollToStop(index, 'auto')
   }
 
   const current = panel >= 1 && panel <= projects.length ? projects[panel - 1] : null
@@ -267,11 +324,12 @@ export function CaseFiles() {
         <button type="button" onClick={() => goToPanel(panel + 1)} disabled={panel >= projects.length} aria-label="Next case file"><ArrowRight size={16} /></button>
       </div>
       <div className="cases__track">
+        <div className="cases__stage" aria-hidden="true" />
         <header className="cases__intro">
           <p className="kicker">Chapter 03 — Selected work</p>
           <h2 id="cases-title" className="glow">Case Files</h2>
           <p>Four product directions, explored as concept studies. They show how we think. They are not client commissions, and we label them that way.</p>
-          <span className="cases__hint" aria-hidden="true">Keep scrolling <ArrowRight size={14} /></span>
+          <span className="cases__hint" aria-hidden="true">Keep scrolling <ArrowDown size={14} /></span>
         </header>
         {projects.map((project, index) => (
           <article className="case" key={project.number} aria-labelledby={`case-${project.number}`} onFocus={() => followFocus(index + 1)}>
@@ -290,7 +348,7 @@ export function CaseFiles() {
           <span className="cases__stamp">FILE 05</span>
           <h3>Have a real one?</h3>
           <p>The next file could be yours: a genuine brief, built for real people.</p>
-          <a className="button-cream" href="#reel">Start a project <ArrowRight size={15} /></a>
+          <a className="button-cream" href="#start">Start a project <ArrowRight size={15} /></a>
         </aside>
       </div>
       <div className="cases__progress" aria-hidden="true"><i /></div>
@@ -492,332 +550,7 @@ export function Lab() {
   )
 }
 
-/* ---------- E. Technology ecosystem ---------- */
-
-const wordmarkStyle = Object.fromEntries(tools.map((tool) => [tool.name, tool.style]))
-
-export function Ecosystem({ reducedMotion }) {
-  const sectionRef = useRef(null)
-  useGSAP(() => {
-    const section = sectionRef.current
-    // The band being read lights its node on the spine (a state, kept with reduced motion).
-    gsap.utils.toArray('.eco__band', section).forEach((band) => {
-      ScrollTrigger.create({ trigger: band, start: 'top 50%', end: 'bottom 50%', toggleClass: 'is-active' })
-    })
-    if (reducedMotion) return
-    gsap.to('.eco__orbit', { rotate: 120, ease: 'none', scrollTrigger: { trigger: section, start: 'top bottom', end: 'bottom top', scrub: 1 } })
-    // The spine that connects the layers fills as the ecosystem is read.
-    gsap.fromTo('.eco__spine i', { scaleY: 0 }, { scaleY: 1, ease: 'none', scrollTrigger: { trigger: '.eco__bands', start: 'top 65%', end: 'bottom 55%', scrub: 0.6 } })
-    gsap.fromTo('.eco__core', { scale: 0.6, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, ease: 'none', scrollTrigger: { trigger: section, start: 'top 80%', end: 'top 20%', scrub: 0.8 } })
-    gsap.utils.toArray('.eco__band', section).forEach((band, index) => {
-      gsap.timeline({ scrollTrigger: { trigger: band, start: 'top 84%', once: true } })
-        .fromTo(band, { z: -140, rotateX: 18, autoAlpha: 0, transformPerspective: 1200 }, { z: 0, rotateX: 0, autoAlpha: 1, duration: 0.8, ease: 'power3.out' })
-        // Wordmark cards flip up like split-flap characters, one after another.
-        .fromTo(band.querySelectorAll('.wordmark'), { rotateX: -90, autoAlpha: 0, transformPerspective: 500 }, {
-          rotateX: 0, autoAlpha: 1, stagger: 0.08, duration: 0.6, ease: 'back.out(1.8)',
-        }, 0.2)
-      gsap.fromTo(band.querySelector('.eco__marks'), { x: index % 2 ? 50 : -50 }, { x: 0, ease: 'none', scrollTrigger: { trigger: band, start: 'top bottom', end: 'top 55%', scrub: 0.6 } })
-    })
-  }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
-
-  return (
-    <section className="eco zone" id="technology" ref={sectionRef} aria-labelledby="eco-title">
-      <div className="zone__fallback zone__fallback--constellation" aria-hidden="true" />
-      <div className="eco__core" aria-hidden="true" />
-      <svg className="eco__orbit" viewBox="0 0 400 400" aria-hidden="true">
-        <circle cx="200" cy="200" r="190" /><circle cx="200" cy="200" r="140" /><circle cx="200" cy="200" r="90" />
-        <circle className="eco__planet" cx="200" cy="10" r="7" /><circle className="eco__planet" cx="340" cy="200" r="5" /><circle className="eco__planet" cx="200" cy="290" r="6" />
-      </svg>
-      <span className="showcase__stamp showcase__stamp--left" aria-hidden="true">CHOSEN<br />TO FIT<br />THE JOB</span>
-      <span className="showcase__stamp showcase__stamp--right" aria-hidden="true">NOT<br />BY<br />HABIT</span>
-      <p className="kicker">Chapter 07 — Technology ecosystem</p>
-      <h2 id="eco-title" className="glow reveal">A Showcase of Trusted Tools</h2>
-      <p className="showcase__lede reveal">A well-chosen toolbox, organised by the job each tool does. We pick what fits the product, not the trend.</p>
-      <div className="eco__bands">
-        <span className="eco__spine" aria-hidden="true"><i /></span>
-        {techGroups.map((group) => (
-          <div className="eco__band" key={group.category}>
-            <span className="eco__node" aria-hidden="true" />
-            <div className="eco__label"><span>{group.category}</span><em>{group.title}</em></div>
-            <ul className="eco__marks">{group.items.map((item) => <li key={item} className={`wordmark ${wordmarkStyle[item] || ''}`}>{item}</li>)}</ul>
-            <p className="eco__role">{group.role}</p>
-          </div>
-        ))}
-      </div>
-      <div className="zone__handoff" aria-hidden="true" />
-    </section>
-  )
-}
-
-/* ---------- F. How we work: a ring of stages that becomes a workflow drum ---------- */
-
-// Scroll choreography, as fractions of the pinned distance.
-const RING_END = 0.15 // the ring has fully folded into the drum
-const DRUM_START = 0.18 // stage 1 faces the viewer
-const DRUM_SPAN = 0.7 // stage 6 faces the viewer at DRUM_START + DRUM_SPAN
-const SETTLE_START = 0.92 // the drum settles back before the pin releases
-const STEP_DEG = 40 // angle between neighbouring stages on the drum
-const HEAD_TOP_SCALE = 0.58 // the heading's size once it has risen above the drum
-const LAST_STAGE = processStages.length - 1
-const STAGE_STOPS = processStages.map((_, index) => DRUM_START + (index / LAST_STAGE) * DRUM_SPAN)
-const D2R = Math.PI / 180
-
-const clamp01 = (value) => Math.min(1, Math.max(0, value))
-const smooth = (from, to, value) => {
-  const t = clamp01((value - from) / (to - from))
-  return t * t * (3 - 2 * t)
-}
-const mix = (a, b, t) => a + (b - a) * t
-
-function StageCard({ stage, index, active }) {
-  return (
-    <article className={`drum-card ${active ? 'is-active' : ''}`} aria-labelledby={`stage-${index}`}>
-      <span className="drum-card__node" aria-hidden="true" />
-      <div className="drum-card__bar" aria-hidden="true"><span>STAGE_0{index + 1}</span><span>{stage.command}</span><i /><i /></div>
-      <div className="drum-card__body">
-        <p className="drum-card__prompt" aria-hidden="true">C:\DEVCORE&gt; RUN {stage.command}</p>
-        <h3 id={`stage-${index}`}><span className="drum-card__num">0{index + 1}</span> {stage.title}</h3>
-        <p className="drum-card__happens">{stage.happens}</p>
-        <dl>
-          <div><dt>You get</dt><dd>{stage.youGet}</dd></div>
-          <div><dt>Your role</dt><dd>{stage.yourRole}</dd></div>
-        </dl>
-      </div>
-      <span className="drum-card__shade" aria-hidden="true" />
-    </article>
-  )
-}
-
-export function ProcessTimeline() {
-  const sectionRef = useRef(null)
-  const triggerRef = useRef(null)
-  const activeRef = useRef(0)
-  const [active, setActive] = useState(0)
-
-  useGSAP(() => {
-    const section = sectionRef.current
-    const cards = gsap.utils.toArray('.drum-card', section)
-    const mm = gsap.matchMedia()
-    const activate = (next) => {
-      if (next === activeRef.current) return
-      activeRef.current = next
-      setActive(next)
-    }
-
-    // Phones, tablets and short screens: the same cards in normal document flow. Each tilts
-    // up out of depth as it arrives, holds flat while it is read, and leans away as it leaves.
-    const flow = () => {
-      cards.forEach((card, index) => {
-        gsap.timeline({ scrollTrigger: { trigger: card, start: 'top bottom', end: 'bottom top', scrub: 0.6 } })
-          .fromTo(card, { rotateX: 16, z: -90, opacity: 0.35, transformPerspective: 1100, transformOrigin: '50% 50%' }, { rotateX: 0, z: 0, opacity: 1, ease: 'power2.out', duration: 0.36 })
-          .to(card, { rotateX: 0, duration: 0.28 })
-          .to(card, { rotateX: -10, z: -50, opacity: 0.6, ease: 'power1.in', duration: 0.36 })
-        ScrollTrigger.create({ trigger: card, start: 'top 50%', end: 'bottom 50%', onToggle: (self) => { if (self.isActive) activate(index) } })
-      })
-      ScrollTrigger.create({
-        trigger: section.querySelector('.drum'),
-        start: 'top 60%',
-        end: 'bottom 60%',
-        onUpdate: (self) => section.style.setProperty('--pt-progress', self.progress.toFixed(3)),
-      })
-    }
-
-    // Tall desktops: the pinned ring → drum sequence. One scrubbed progress value drives every
-    // transform; React only hears about it when the active stage changes.
-    const drum = () => {
-      section.classList.add('is-drum')
-      const head = section.querySelector('.pt__head')
-      const index = section.querySelector('.pt__index')
-      const halo = section.querySelector('.drum__halo')
-      const geo = {}
-
-      const measure = () => {
-        const stageW = section.clientWidth
-        const stageH = section.clientHeight
-        const navH = document.querySelector('.nav')?.offsetHeight || 76
-        const headH = head.offsetHeight
-        const drumTop = navH + 14 + headH * HEAD_TOP_SCALE + 10
-        const gutter = parseFloat(getComputedStyle(section).getPropertyValue('--gutter')) || 0.05 * stageW
-        // The drum layer spans the whole stage (so the ring is never clipped); cards are anchored
-        // at the centre of the area right of the stage index and below the risen heading.
-        const areaLeft = gutter + 300
-        const areaW = stageW - areaLeft - gutter
-        const areaH = stageH - drumTop - stageH * 0.03
-        const anchorX = areaLeft + areaW / 2
-        const anchorY = drumTop + areaH / 2
-        section.style.setProperty('--drum-top', `${Math.round(drumTop)}px`)
-        section.style.setProperty('--drum-cx', `${Math.round(anchorX)}px`)
-        section.style.setProperty('--drum-cy', `${Math.round(anchorY)}px`)
-        section.style.setProperty('--drum-card-w', `${Math.round(Math.min(640, areaW - 20))}px`)
-        // Every card shares the tallest card's height so the drum is a true cylinder.
-        section.style.removeProperty('--drum-card-h')
-        const cardH = Math.max(...cards.map((card) => card.offsetHeight))
-        const cardW = cards[0].offsetWidth
-        section.style.setProperty('--drum-card-h', `${cardH}px`)
-        geo.cx = anchorX - stageW / 2
-        geo.cy = anchorY - stageH / 2
-        geo.fitScale = Math.min(1, (areaH - 16) / cardH)
-        // Radius chosen so neighbouring cards meet just clear of the active card's edges.
-        geo.radius = (cardH / 2 + 28) / Math.tan((STEP_DEG / 2) * D2R)
-        geo.headTopY = -stageH / 2 + navH + 14 + (headH * HEAD_TOP_SCALE) / 2
-        geo.rx = Math.min(stageW * 0.36, 560)
-        geo.ry = Math.min(stageH * 0.31, 290)
-        geo.ringScale = Math.min(0.42, (geo.ry * 0.72) / cardH, (geo.rx * 0.62) / cardW)
-        geo.ring = processStages.map((_, i) => {
-          const phi = (-120 + i * 60) * D2R
-          return { x: Math.cos(phi) * geo.rx, y: Math.sin(phi) * geo.ry, phi }
-        })
-        halo.setAttribute('viewBox', `${-stageW / 2} ${-stageH / 2} ${stageW} ${stageH}`)
-        halo.querySelector('polygon').setAttribute('points', geo.ring.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' '))
-        // Faint orbits behind the heading and a glowing marker at each stage's place on the ring.
-        const [outer, inner] = halo.querySelectorAll('.drum__orbit')
-        outer.setAttribute('r', (geo.ry * 0.82).toFixed(1))
-        inner.setAttribute('r', (geo.ry * 0.56).toFixed(1))
-        halo.querySelectorAll('.drum__marker').forEach((marker, i) => {
-          marker.setAttribute('cx', geo.ring[i].x.toFixed(1))
-          marker.setAttribute('cy', geo.ring[i].y.toFixed(1))
-        })
-        geo.fits = geo.fitScale > 0.86
-      }
-
-      const render = (p) => {
-        const fold = smooth(0.02, RING_END, p)
-        const s = clamp01((p - DRUM_START) / DRUM_SPAN) * LAST_STAGE
-        const settle = smooth(SETTLE_START, 1, p)
-        cards.forEach((card, i) => {
-          // Cards fold out of the ring one after another, not all at once.
-          const t = clamp01(fold * 1.45 - i * 0.08)
-          const ring = geo.ring[i]
-          const angle = (i - s) * STEP_DEG
-          const away = Math.abs(angle)
-          const x = mix(ring.x - geo.cx, 0, t)
-          const y = mix(ring.y - geo.cy, geo.radius * Math.sin(angle * D2R), t)
-          const z = mix(-40, geo.radius * Math.cos(angle * D2R) - geo.radius - settle * 180, t)
-          const rotateX = mix(Math.sin(ring.phi) * -10, -angle - settle * 6, t)
-          const rotateY = mix(Math.cos(ring.phi) * 16, 0, t)
-          const scale = mix(geo.ringScale, geo.fitScale * (1 - settle * 0.06), t)
-          const drumOpacity = away > 92 ? 0 : clamp01(1 - (away - STEP_DEG * 0.6) / (STEP_DEG * 1.5))
-          const opacity = mix(0.94, drumOpacity * (1 - settle * (i === LAST_STAGE ? 0.1 : 0.4)), t)
-          card.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, ${z.toFixed(1)}px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale(${scale.toFixed(3)})`
-          card.style.opacity = opacity.toFixed(3)
-          card.style.zIndex = String(Math.round(200 - mix(0, away, t)))
-          card.style.setProperty('--shade', mix(0.15, clamp01(away / STEP_DEG) * 0.72, t).toFixed(3))
-          card.style.visibility = opacity < 0.02 ? 'hidden' : 'visible'
-        })
-        head.style.transform = `translate(-50%, -50%) translate3d(0, ${mix(0, geo.headTopY, fold).toFixed(1)}px, 0) scale(${mix(1, HEAD_TOP_SCALE, fold).toFixed(3)})`
-        index.style.opacity = fold.toFixed(3)
-        index.style.transform = `translateX(${mix(-40, 0, fold).toFixed(1)}px)`
-        index.style.visibility = fold < 0.02 ? 'hidden' : 'visible'
-        section.style.setProperty('--ring', (1 - fold).toFixed(3))
-        section.style.setProperty('--pt-progress', (s / LAST_STAGE).toFixed(3))
-        activate(Math.round(s))
-      }
-
-      measure()
-      // Guard: if the stage cannot fit at a comfortable size, use the normal-flow sequence.
-      if (!geo.fits) {
-        section.classList.remove('is-drum')
-        section.style.removeProperty('--drum-card-h')
-        flow()
-        return undefined
-      }
-
-      const proxy = { p: 0 }
-      const tween = gsap.to(proxy, {
-        p: 1,
-        ease: 'none',
-        onUpdate: () => render(proxy.p),
-        scrollTrigger: {
-          trigger: section,
-          start: 'top top',
-          // Ring fold + ~45vh per stage + a short settle: long enough to read, never a trap.
-          end: `+=${processStages.length * 45 + 80}%`,
-          pin: true,
-          scrub: 0.55,
-          invalidateOnRefresh: true,
-          snap: { snapTo: [0, ...STAGE_STOPS, 1], directional: false, inertia: false, duration: { min: 0.25, max: 0.6 }, delay: 0.12, ease: 'power2.inOut' },
-          onRefresh: () => {
-            measure()
-            render(proxy.p)
-          },
-        },
-      })
-      triggerRef.current = tween.scrollTrigger
-      render(0)
-
-      return () => {
-        triggerRef.current = null
-        section.classList.remove('is-drum')
-        ;['--drum-top', '--drum-cx', '--drum-cy', '--drum-card-w', '--drum-card-h', '--ring', '--pt-progress'].forEach((name) => section.style.removeProperty(name))
-        ;[...cards, head, index].forEach((element) => {
-          element.style.removeProperty('transform')
-          element.style.removeProperty('opacity')
-          element.style.removeProperty('visibility')
-          element.style.removeProperty('z-index')
-          element.style.removeProperty('--shade')
-        })
-      }
-    }
-
-    mm.add(PROCESS_PINNED, drum)
-    mm.add(PROCESS_FLOW, flow)
-    return () => mm.revert()
-  }, { scope: sectionRef })
-
-  // Stage indicators scroll the sequence to that stage, so card, text and path move together.
-  const select = (index) => {
-    const st = triggerRef.current
-    if (st) {
-      window.scrollTo({ top: st.start + (st.end - st.start) * STAGE_STOPS[index], behavior: 'smooth' })
-      return
-    }
-    sectionRef.current.querySelectorAll('.drum-card')[index]?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-  }
-
-  const onIndexKey = (event, index) => {
-    const keys = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1, Home: -index, End: LAST_STAGE - index }
-    if (!(event.key in keys)) return
-    event.preventDefault()
-    const next = Math.min(LAST_STAGE, Math.max(0, index + keys[event.key]))
-    select(next)
-    event.currentTarget.closest('ol').querySelectorAll('button')[next]?.focus()
-  }
-
-  return (
-    <section className="process pt zone" id="process" ref={sectionRef} aria-labelledby="process-title">
-      <div className="pt__floor" aria-hidden="true" />
-      <svg className="drum__halo" aria-hidden="true">
-        <circle className="drum__orbit" cx="0" cy="0" />
-        <circle className="drum__orbit drum__orbit--inner" cx="0" cy="0" />
-        <polygon />
-        {processStages.map((stage) => <circle key={stage.title} className="drum__marker" r="4" />)}
-      </svg>
-      <header className="pt__head">
-        <p className="kicker">Chapter 08 — How we work</p>
-        <h2 id="process-title" className="glow">How We Work</h2>
-        <p className="process__lede">Six stages, in order, every time. Written for the people we build with, not just for developers.</p>
-      </header>
-      <nav className="pt__index" aria-label="Workflow stages">
-        <span className="pt__rail" aria-hidden="true"><i /></span>
-        <ol>
-          {processStages.map((stage, index) => (
-            <li key={stage.title} className={index === active ? 'is-active' : index < active ? 'is-done' : ''}>
-              <button type="button" onClick={() => select(index)} onKeyDown={(event) => onIndexKey(event, index)} aria-current={index === active ? 'step' : undefined}>
-                <span className="pt__node" aria-hidden="true" />
-                <span className="pt__num">0{index + 1}</span>
-                <span className="pt__title">{stage.title}</span>
-              </button>
-            </li>
-          ))}
-        </ol>
-      </nav>
-      <div className="drum">
-        {processStages.map((stage, index) => <StageCard key={stage.title} stage={stage} index={index} active={index === active} />)}
-      </div>
-      <p className="visually-hidden" aria-live="polite">Stage {active + 1} of {processStages.length}: {processStages[active].title}</p>
-    </section>
-  )
-}
+/* ---------- F. How we work: see ProcessFlow.jsx ---------- */
 
 /* ---------- G. Quality & reliability ---------- */
 
@@ -835,7 +568,7 @@ export function Quality() {
       headline={{ line1: 'Quality Is', line2: 'Built In.' }}
       subtitle="Reliable systems, deliberate engineering, and thoughtful validation — built to perform beyond the first release."
       buttons={{
-        primary: { text: 'Start a Project', href: '#reel' },
+        primary: { text: 'Start a Project', href: '#start' },
         secondary: { text: 'Our Approach', href: '#process' },
       }}
     >

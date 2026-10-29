@@ -31,7 +31,6 @@
   text-transform: uppercase;
   color: var(--accent-b);
 }
-.paper .kicker { color: #8a3a26; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .chips > li, .chips > span {
@@ -42,7 +41,6 @@
   font-size: 16px;
   letter-spacing: 0.04em;
 }
-.paper .chips > li, .paper .chips > span { border-color: rgba(42, 31, 23, 0.35); }
 
 .button-cream {
   display: inline-flex;
@@ -196,7 +194,8 @@
   display: none;
   align-items: center;
   gap: 8px;
-  padding: 7px 12px;
+  min-height: 44px;
+  padding: 7px 14px;
   border: 1px solid rgba(252, 249, 243, 0.35);
   border-radius: 999px;
   background: rgba(5, 4, 6, 0.5);
@@ -236,43 +235,6 @@
 .chapter__num, .chapter__name { animation: chapter-in 0.45s ease both; }
 @keyframes chapter-in { from { opacity: 0; transform: translateY(8px); } }
 html.is-booting .chapter { opacity: 0; }
-
-/* ---------- Hero tweaks ---------- */
-
-@media (min-width: 761px) { .hero__copy { top: 44%; } }
-/* Hero exit: copy and carousel part ways while a veil closes into the prelude's colour. */
-.hero__stage::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  background: #0d0a10;
-  opacity: calc(var(--hero-exit, 0) * 1.5 - 0.35);
-  pointer-events: none;
-}
-.hero__copy { translate: 0 calc(var(--hero-exit, 0) * -90px); }
-.work-bar { translate: 0 calc(var(--hero-exit, 0) * 70px); }
-.work-bar .work-bar__open {
-  display: inline-flex;
-  height: auto;
-  border-radius: 0;
-  align-items: center;
-  gap: 4px;
-  width: fit-content;
-  margin-top: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--accent-b);
-  font-family: var(--pixel);
-  font-size: 17px;
-  letter-spacing: 0.04em;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-.work-bar .work-bar__open:hover { background: none; color: var(--cream); }
-.retro-computer--fallback { display: grid; place-items: center end; padding-right: 12vw; }
 
 /* ---------- A. Prelude ---------- */
 
@@ -334,8 +296,8 @@ html.is-booting .chapter { opacity: 0; }
     linear-gradient(rgba(252, 249, 243, 0.035) 1px, transparent 1px) 0 0 / 100% 64px,
     #0f0b0e;
 }
-/* Default: a vertical stack (no JS, reduced motion, short landscape phones). The horizontal
-   journey only applies while a matchMedia context has added .is-hscroll. */
+/* Default: a vertical stack (phones, tablets, short screens, reduced motion, no JS). The Works
+   wheel only applies while a matchMedia context has added .is-wheel. */
 .cases__track { display: flex; flex-direction: column; gap: 90px; padding: 120px var(--gutter) 110px; }
 .cases__intro { max-width: 640px; }
 .cases__intro h2 { margin-bottom: 18px; font-size: clamp(56px, 8vw, 140px); font-weight: 500; line-height: 0.95; }
@@ -351,12 +313,6 @@ html.is-booting .chapter { opacity: 0; }
 }
 .cases__hud, .cases__progress { display: none; }
 
-.cases.is-hscroll .cases__track { flex-direction: row; align-items: center; gap: 7vw; width: max-content; height: 100vh; height: 100svh; padding: 0 var(--gutter); }
-.is-hscroll .cases__intro { flex: none; width: min(500px, 80vw); }
-.is-hscroll .case { flex: none; width: min(1120px, 84vw); }
-.is-hscroll .cases__outro { flex: none; width: min(480px, 80vw); }
-.is-hscroll .cases__hint { display: inline-flex; }
-.is-hscroll .cases__progress { display: block; }
 .cases__hud {
   position: absolute;
   z-index: 3;
@@ -373,7 +329,6 @@ html.is-booting .chapter { opacity: 0; }
     linear-gradient(90deg, var(--accent-a), var(--accent-b)) left bottom / calc(var(--cases-progress, 0) * 100%) 2px no-repeat,
     rgba(16, 12, 16, 0.78);
 }
-.is-hscroll .cases__hud { display: grid; }
 .cases__hud button {
   display: grid;
   place-items: center;
@@ -391,28 +346,86 @@ html.is-booting .chapter { opacity: 0; }
 .cases__hud-info span { font-family: var(--pixel); font-size: 15px; letter-spacing: 0.08em; color: var(--accent-b); }
 .cases__hud-info strong { overflow: hidden; font-size: 16px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
 
-/* Tall phones: the same pinned journey, recomposed for a narrow screen. */
-.cases.is-compact .cases__track { gap: 9vw; padding: 70px 7vw 150px; }
-.is-compact .case { width: 86vw; grid-template-columns: 1fr; gap: 16px; }
-.is-compact .cases__intro, .is-compact .cases__outro { width: 84vw; }
-.is-compact .cases__intro h2 { font-size: clamp(52px, 16vw, 84px); }
-.is-compact .cases__intro p { font-size: 17px; }
-.is-compact .case-visual { aspect-ratio: 16 / 10; }
-.is-compact .case__copy .kicker { margin-bottom: 8px; font-size: 15px; }
-.is-compact .case__copy h3 { font-size: clamp(28px, 8vw, 40px); }
-.is-compact .case__line { margin-bottom: 8px; font-size: 18px; }
-.is-compact .case__copy > p:not(.kicker):not(.case__line) {
-  display: -webkit-box;
-  margin-bottom: 14px;
-  overflow: hidden;
-  font-size: 15px;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+/* Works wheel (desktop, added by a matchMedia context): the files form a ring on the left that
+   folds into a vertical drum; the copy of the file in front sits on the right. */
+.cases__stage { display: none; }
+.cases.is-wheel {
+  --wheel-w: min(36vw, 60vh, 600px);
+  height: 100vh;
+  height: 100svh;
 }
-.is-compact .case__copy .chips { display: none; }
-.is-compact .cases__progress { display: none; }
-.is-compact .cases__hud { left: 16px; right: 16px; bottom: 70px; min-width: 0; }
-@media (min-width: 600px) { .is-compact .cases__hud { left: 50%; right: auto; width: min(420px, 70vw); bottom: 96px; transform: translateX(-50%); } }
+.cases.is-wheel .cases__track { position: relative; display: block; height: 100%; padding: 0; }
+.is-wheel .cases__stage { position: absolute; inset: 0 42% 0 0; display: block; }
+.is-wheel .cases__intro, .is-wheel .case__copy, .is-wheel .cases__outro {
+  position: absolute;
+  z-index: 300;
+  left: 58%;
+  top: 50%;
+  width: min(460px, 34vw);
+  translate: 0 -50%;
+}
+.is-wheel .cases__hint { display: inline-flex; }
+.is-wheel .case { position: absolute; inset: 0; display: block; perspective: 1700px; perspective-origin: 29% 50%; pointer-events: none; }
+.is-wheel .case-visual {
+  position: absolute;
+  left: calc(29% - var(--wheel-w) / 2);
+  top: calc(50% - var(--wheel-w) * 0.375);
+  width: var(--wheel-w);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}
+/* Copy and the closing panel cross-fade as files come to the front. Opacity only, so they stay
+   readable by assistive tech and focus can still reach them (focus turns the wheel). */
+.is-wheel .case__copy, .is-wheel .cases__outro { opacity: 0; translate: 0 calc(-50% + 18px); transition: opacity 0.45s ease, translate 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.is-wheel .case.is-active .case__copy, .is-wheel .cases__outro.is-active { opacity: 1; translate: 0 -50%; pointer-events: auto; }
+.is-wheel .case__copy > p:not(.kicker):not(.case__line) { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 4; -webkit-box-orient: vertical; }
+.is-wheel .cases__hud, .is-wheel .cases__progress { display: grid; }
+.is-wheel .cases__progress { display: block; }
+
+/* Phones and tablets: one column of files. */
+@media (max-width: 899px) {
+  .cases__track { gap: 64px; padding: 96px var(--gutter) 90px; }
+  .case { grid-template-columns: 1fr; gap: 18px; }
+  .case-visual { aspect-ratio: 16 / 11; }
+  .cases__intro h2 { font-size: clamp(48px, 15vw, 84px); }
+  .cases__intro p { font-size: 17px; }
+  .case__copy h3 { font-size: clamp(30px, 8.4vw, 44px); }
+  .case__line { font-size: 19px; }
+  .cases__outro { padding: 36px 24px; }
+}
+
+/* Phones and tablets (portrait): the same Works wheel, with the drum at the top of the screen
+   and the copy of the file in front as a sheet across the bottom, above the controls. */
+@media (max-width: 899px) {
+  .cases.is-wheel { --wheel-w: min(62vw, 28svh, 380px); --drum-y: calc(96px + var(--wheel-w) * 0.375); }
+  .is-wheel .cases__stage { inset: 76px 0 auto 0; height: calc(var(--wheel-w) * 1.5); }
+  .is-wheel .case { perspective-origin: 50% var(--drum-y); }
+  .is-wheel .case-visual { left: calc(50% - var(--wheel-w) / 2); top: calc(var(--drum-y) - var(--wheel-w) * 0.375); }
+  .is-wheel .cases__intro, .is-wheel .case__copy {
+    left: 0;
+    top: auto;
+    bottom: 0;
+    width: auto;
+    right: 0;
+    padding: 40px var(--gutter) 118px;
+    background: linear-gradient(transparent, #0f0b0e 36px);
+    translate: 0 0;
+  }
+  .is-wheel .case__copy { translate: 0 18px; }
+  .is-wheel .case.is-active .case__copy { translate: 0 0; }
+  .is-wheel .cases__outro { left: var(--gutter); right: var(--gutter); top: auto; bottom: 118px; width: auto; translate: 0 18px; }
+  .is-wheel .cases__outro.is-active { translate: 0 0; }
+  .is-wheel .cases__intro h2 { font-size: clamp(44px, 13vw, 84px); }
+  .is-wheel .cases__intro p { font-size: 16px; }
+  .is-wheel .case__copy .kicker { font-size: 13px; }
+  .is-wheel .case__copy h3 { font-size: clamp(26px, 7.4vw, 40px); }
+  .is-wheel .case__line { margin-bottom: 8px; font-size: 16px; }
+  .is-wheel .case__copy > p:not(.kicker):not(.case__line) { margin-bottom: 12px; font-size: 15px; -webkit-line-clamp: 2; }
+  .is-wheel .case__copy .chips { margin-bottom: 14px; }
+  .is-wheel .cases__hud { left: var(--gutter); right: var(--gutter); bottom: 46px; min-width: 0; }
+  .is-wheel .cases__progress { bottom: 28px; }
+}
+
 .case__copy h3 { margin-bottom: 8px; font-size: clamp(34px, 3.8vw, 62px); font-weight: 500; line-height: 1.05; }
 .case__line { margin-bottom: 14px; font-size: 22px; font-style: italic; color: #ffd2a1; }
 .case__copy > p:not(.kicker):not(.case__line) { margin-bottom: 18px; font-size: 17px; color: var(--cream-dim); }
@@ -636,21 +649,6 @@ html.is-booting .chapter { opacity: 0; }
 .lab__panel p { margin-bottom: 14px; color: var(--cream-dim); }
 @keyframes panel-in { from { opacity: 0; transform: translateX(-10px); } }
 
-/* ---------- E. Ecosystem ---------- */
-
-.eco { position: relative; overflow: hidden; padding: 120px var(--gutter) 130px; text-align: center; }
-.eco h2 { margin-bottom: 22px; font-size: clamp(42px, 6vw, 100px); font-weight: 500; line-height: 1.05; text-wrap: balance; }
-.eco__orbit { position: absolute; left: 50%; top: 40px; width: min(980px, 140vw); margin-left: calc(min(980px, 140vw) / -2); opacity: 0.16; fill: none; stroke: var(--ink); stroke-width: 1; pointer-events: none; }
-.eco__planet { fill: var(--ink); }
-.eco .showcase__stamp { top: 150px; }
-.eco__bands { position: relative; max-width: 1180px; margin: 0 auto; text-align: left; }
-.eco__band { display: grid; grid-template-columns: 220px 1fr 290px; align-items: center; gap: 30px; padding: 30px 0; border-top: 1px solid rgba(42, 31, 23, 0.25); }
-.eco__band:last-child { border-bottom: 1px solid rgba(42, 31, 23, 0.25); }
-.eco__label span { display: block; font-family: var(--pixel); font-size: 18px; letter-spacing: 0.1em; text-transform: uppercase; color: #8a3a26; }
-.eco__label em { font-size: 22px; }
-.eco__marks { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 40px; margin: 0; padding: 0; list-style: none; }
-.eco__role { font-size: 15px; color: var(--ink-soft); }
-
 /* F. Process timeline: see retro-depth.css */
 
 /* G. Quality: an animated shader hero (src/components/ui/AnimatedShaderHero.jsx) */
@@ -700,74 +698,6 @@ html.is-booting .chapter { opacity: 0; }
   transform: translateY(100%);
 }
 
-/* ---------- H. Story additions ---------- */
-
-/* The rising sheet ends exactly where the Gazette begins, so the two read as one page. */
-.story { margin-top: 0; box-shadow: none; }
-.story .paper__curl { display: none; }
-.story__masthead { position: relative; border: 0; }
-.story__masthead::before, .story__masthead::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  transform: scaleX(var(--rule, 1));
-  transform-origin: left;
-}
-.story__masthead::before { top: 0; border-top: 4px double var(--ink); }
-.story__masthead::after { bottom: 0; border-bottom: 1px solid var(--ink); transform-origin: right; }
-.story__title .word { display: inline-block; overflow: hidden; padding-bottom: 0.08em; vertical-align: top; }
-.story__title .word > span { display: inline-block; }
-.story__aside { will-change: transform; }
-
-.story__edition { margin: -36px 0 40px; font-family: var(--pixel); font-size: 17px; letter-spacing: 0.18em; text-align: center; color: var(--ink-soft); }
-.story__layout { display: grid; grid-template-columns: 1fr 330px; gap: 56px; max-width: 1280px; margin: 0 auto; }
-.story__layout .story__columns { column-count: 2; margin: 0; }
-.story__subhead { break-after: avoid; margin: 0 0 6px; font-size: 22px; font-style: italic; font-weight: 700; }
-.story__subhead ~ .story__subhead { margin-top: 18px; }
-.story__aside { padding-left: 32px; border-left: 1px solid rgba(42, 31, 23, 0.25); }
-.venn svg { display: block; width: 100%; }
-.venn circle { fill: none; stroke: var(--ink); stroke-width: 2; stroke-dasharray: 1; }
-.venn text { fill: var(--ink); font-family: var(--serif); font-size: 16px; }
-.venn .venn__core { fill: #a8432d; font-family: var(--pixel); font-size: 15px; letter-spacing: 0.1em; text-anchor: middle; }
-.venn figcaption { margin-top: 4px; font-size: 14px; font-style: italic; color: var(--ink-soft); }
-.story__annotation { margin: 8px 0 26px; font-family: 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive; font-size: 19px; color: #a8432d; transform: rotate(-4deg); }
-.story__brief { padding: 16px 18px; border: 2px solid var(--ink); }
-.story__brief h4 { font-family: var(--pixel); font-size: 18px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; }
-.story__brief ul { margin: 6px 0 0; padding: 0; list-style: none; }
-.story__brief li { padding: 7px 0; border-bottom: 1px dotted rgba(42, 31, 23, 0.4); font-size: 16px; }
-.story__brief li:last-child { border-bottom: 0; }
-.story__statement { max-width: 1280px; margin: 110px auto 20px; font-size: clamp(54px, 10vw, 180px); font-weight: 500; line-height: 0.98; }
-.story__statement > span { display: block; overflow: hidden; padding-bottom: 0.06em; }
-.story__statement > span > span { display: inline-block; }
-.story__statement > span:nth-child(2) { padding-left: 12vw; }
-.story__statement > span:nth-child(3) { padding-left: 24vw; }
-.story__statement em { color: #a8432d; }
-
-/* ---------- J. Footer brand moment ---------- */
-
-.footer__wordmark {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: center;
-  margin-top: 30px;
-  font-size: 19vw;
-  font-style: italic;
-  font-weight: 700;
-  line-height: 0.82;
-  letter-spacing: -0.02em;
-  color: transparent;
-  -webkit-text-stroke: 1px rgba(252, 249, 243, 0.4);
-  overflow: hidden;
-}
-.footer__wordmark.reveal { opacity: 1; transform: none; }
-.footer__wordmark span { display: inline-block; transform: translateY(60%); opacity: 0; transition: transform 0.9s cubic-bezier(0.2, 0.75, 0.2, 1), opacity 0.9s, color 0.4s; transition-delay: calc(var(--i) * 60ms); }
-.footer__wordmark.is-visible span { transform: none; opacity: 1; }
-.footer__wordmark:hover span { color: rgba(255, 179, 107, 0.18); }
-.footer__top { grid-column: 1 / -1; justify-self: center; font-family: var(--pixel); font-size: 18px; color: var(--cream-dim); text-underline-offset: 4px; }
-.footer__top:hover { color: var(--accent-b); }
-
-
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1080px) {
@@ -786,11 +716,6 @@ html.is-booting .chapter { opacity: 0; }
   }
   .nav.is-open nav a { padding: 8px 0; font-size: 26px; background-size: 0 2px; }
   .chapter { display: none; }
-  .story__layout { grid-template-columns: 1fr; }
-  .story__aside { padding-left: 0; border-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
-  .story__annotation { display: none; }
-  .eco__band { grid-template-columns: 180px 1fr; }
-  .eco__role { grid-column: 2; }
 }
 
 @media (max-width: 899px), (prefers-reduced-motion: reduce) {
@@ -815,26 +740,24 @@ html.is-booting .chapter { opacity: 0; }
 }
 
 @media (max-width: 760px) {
-  .nav__call span { display: none; }
-  .eco__band { grid-template-columns: 1fr; gap: 12px; }
-  .eco__role { grid-column: auto; }
-  .story__aside { grid-template-columns: 1fr; }
-  .story__layout .story__columns { column-count: 1; }
-  .story__statement > span:nth-child(2) { padding-left: 6vw; }
-  .story__statement > span:nth-child(3) { padding-left: 12vw; }
+  /* Icon only on phones; the label stays for screen readers, and the tap area is full size. */
+  .nav__call { justify-content: center; min-width: 44px; min-height: 44px; }
+  .nav__call span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .case-dialog dl > div { grid-template-columns: 1fr; gap: 4px; }
-  .hero { height: 300vh; }
-  .work-bar__open { font-size: 15px; }
+}
+
+/* The narrowest phones: the Menu button keeps only its icon (the label stays for screen readers). */
+@media (max-width: 359px) {
+  .nav { gap: 8px; }
+  .nav .logo span { font-size: 21px; }
+  .nav__end { gap: 4px; }
+  .nav__menu { padding: 7px 12px; }
+  .nav__menu span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
 
 /* Phones held sideways: very little height, plenty of width. Recompose rather than squash. */
 @media (orientation: landscape) and (max-height: 520px) {
   .nav { height: 58px; }
-  .hero__copy { top: 70px; width: 52vw; transform: none; }
-  .hero h1 { font-size: clamp(28px, 8.5vh, 46px); }
-  .hero__scroll { margin-top: 10px; font-size: 15px; }
-  .work-bar { left: var(--gutter); right: auto; bottom: 12px; width: min(380px, 46vw); padding: 8px 10px; }
-  .work-bar__info em { display: none; }
   .toast { display: none; }
   .case { grid-template-columns: 1.1fr 1fr; gap: 24px; }
   .case-visual { max-height: 72vh; }
@@ -845,6 +768,5 @@ html.is-booting .chapter { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cases__hint, .chapter__num, .chapter__name, .case-dialog[open], .lab__panel, .pt-state > * { animation: none; }
-  .footer__wordmark span { transform: none; opacity: 1; transition: none; }
+  .cases__hint, .chapter__num, .chapter__name, .case-dialog[open], .lab__panel { animation: none; }
 }

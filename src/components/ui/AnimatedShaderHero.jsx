@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from '../../hooks/useReducedMotion.js'
 import { PointerTracker, ShaderHeroRenderer } from './shaderHeroRenderer.js'
 import './AnimatedShaderHero.css'
@@ -41,12 +41,26 @@ export default function AnimatedShaderHero({
   const hostRef = useRef(null)
   const stageRef = useRef(null)
   const reducedMotion = useReducedMotion()
+  // The WebGL context is only created once the hero is about a screen away.
+  const [near, setNear] = useState(false)
+
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return undefined
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return
+      setNear(true)
+      observer.disconnect()
+    }, { rootMargin: '100% 0px' })
+    observer.observe(host)
+    return () => observer.disconnect()
+  }, [])
 
   // Renderer lifecycle. State lives on the DOM (data-shader), so frames never re-render React.
   useEffect(() => {
     const host = hostRef.current
     const stage = stageRef.current
-    if (!host || !stage) return undefined
+    if (!host || !stage || !near) return undefined
     const canvas = document.createElement('canvas')
     canvas.className = 'ash__canvas'
     canvas.setAttribute('aria-hidden', 'true')
@@ -150,7 +164,7 @@ export default function AnimatedShaderHero({
       canvas.remove()
       delete host.dataset.shader
     }
-  }, [reducedMotion])
+  }, [reducedMotion, near])
 
   // The entrance sequence starts when the hero is actually reached, not on page load.
   useEffect(() => {

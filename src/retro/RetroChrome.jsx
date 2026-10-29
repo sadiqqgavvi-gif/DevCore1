@@ -158,7 +158,7 @@ export function Toast() {
   return (
     <div className="toast" role="note">
       <span>DevCore is open to new projects this season.</span>
-      <a href="#reel">Start a conversation <ArrowRight size={13} /></a>
+      <a href="#start">Start a conversation <ArrowRight size={13} /></a>
       <button type="button" aria-label="Dismiss" onClick={() => setOpen(false)}><X size={14} /></button>
     </div>
   )

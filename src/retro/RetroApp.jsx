@@ -4,14 +4,19 @@ import { requestScrollRefresh, ScrollTrigger } from '../lib/gsap.js'
 import AmbientBackdrop from './AmbientBackdrop.jsx'
 import { alreadyBooted } from './boot.js'
 import { chapters } from './data.js'
-import { Assembler, Capabilities, CaseFiles, Ecosystem, Lab, Prelude, ProcessTimeline, Quality } from './RetroChapters.jsx'
+import { ProcessFlow } from './ProcessFlow.jsx'
+import { Assembler, Capabilities, CaseFiles, Lab, Prelude, Quality } from './RetroChapters.jsx'
 import { BootScreen, ChapterIndicator, CrtOverlay, Navigation, Toast } from './RetroChrome.jsx'
-import { AboutZoom, Convinced, Footer, Hero, Story } from './RetroSections.jsx'
-import SkylineReel from './SkylineReel.jsx'
+import { Gazette } from './Gazette.jsx'
+import { AboutZoom, Convinced, StartProject } from './RetroSections.jsx'
+import SkylineHero from './SkylineHero.jsx'
 import './retro.css'
 import './retro-chapters.css'
 import './retro-depth.css'
-import './skyline.css'
+import './skyline-hero.css'
+import './closing.css'
+import './gazette.css'
+import './process-flow.css'
 
 const TRACKED_SECTIONS = chapters.map(([id]) => id)
 
@@ -107,22 +112,20 @@ export default function RetroApp() {
       <Navigation activeSection={activeSection} />
       <ChapterIndicator activeSection={activeSection} />
       <main id="main">
-        <Hero reducedMotion={reducedMotion} introDelay={showBoot ? 2.4 : 0.2} />
+        <SkylineHero reducedMotion={reducedMotion} introDelay={showBoot ? 2.4 : 0.2} />
         <Prelude reducedMotion={reducedMotion} />
         <CaseFiles />
         <AboutZoom reducedMotion={reducedMotion} />
-        <Story reducedMotion={reducedMotion} />
+        <Gazette reducedMotion={reducedMotion} />
         <Capabilities reducedMotion={reducedMotion} />
         <Lab />
-        <Ecosystem reducedMotion={reducedMotion} />
-        <ProcessTimeline />
+        <ProcessFlow />
         <Quality />
         <Assembler reducedMotion={reducedMotion} />
         <Convinced reducedMotion={reducedMotion} />
-        <SkylineReel reducedMotion={reducedMotion} />
+        <StartProject reducedMotion={reducedMotion} />
       </main>
       <AmbientBackdrop reducedMotion={reducedMotion} />
-      <Footer />
       <Toast />
       <CrtOverlay />
     </div>

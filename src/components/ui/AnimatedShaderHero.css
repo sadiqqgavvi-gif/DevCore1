@@ -176,7 +176,7 @@
 
 @media (max-width: 640px) {
   .ash__content { padding: 104px 20px 80px; }
-  .ash__badge { margin-bottom: 24px; padding: 10px 18px; font-size: 12px; }
+  .ash__badge { margin-bottom: 24px; padding: 10px 18px; font-size: 13px; }
   .ash__title { margin-bottom: 20px; }
   .ash__subtitle { margin-bottom: 32px; }
   .ash__actions { flex-direction: column; align-items: stretch; width: min(100%, 340px); }

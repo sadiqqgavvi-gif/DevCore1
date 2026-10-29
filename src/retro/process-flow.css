@@ -1,0 +1,222 @@
+/* ---------- 08 · How We Work: an editorial carousel of the six stages ----------
+   Default (phones, tablets, short screens, reduced motion): a vertical flow of full cards under
+   a sticky progress rail. Desktop (.is-cinematic, added by a matchMedia context): a pinned
+   horizontal track where cards turn in from the right in 3D, settle flat in the centre and turn
+   away to the left; JS writes only transform, opacity and --open, so no layout runs per frame.
+   Visuals are CSS only: nothing to fail to load. */
+
+.flow {
+  position: relative;
+  overflow-x: clip;
+  isolation: isolate;
+  padding: clamp(96px, 14vh, 140px) var(--gutter) clamp(80px, 12vh, 120px);
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, #15111c, #08070b 70%);
+  color: var(--cream);
+}
+
+/* Stage colour behind the cards (cross-faded on desktop). */
+.flow__bg { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.flow__bg i {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 60% 55% at 72% 42%, hsl(var(--h) 80% 50% / 0.22), transparent 70%),
+    radial-gradient(ellipse 50% 45% at 18% 85%, hsl(calc(var(--h) + 40) 70% 45% / 0.14), transparent 70%);
+}
+.flow__bg i:nth-child(1), .flow-card:nth-child(1) { --h: 28; }
+.flow__bg i:nth-child(2), .flow-card:nth-child(2) { --h: 192; }
+.flow__bg i:nth-child(3), .flow-card:nth-child(3) { --h: 265; }
+.flow__bg i:nth-child(4), .flow-card:nth-child(4) { --h: 152; }
+.flow__bg i:nth-child(5), .flow-card:nth-child(5) { --h: 338; }
+.flow__bg i:nth-child(6), .flow-card:nth-child(6) { --h: 44; }
+
+.flow__head { max-width: 760px; margin: 0 auto; }
+.flow__head .kicker { color: var(--accent-b); }
+.flow__head h2 { margin: 10px 0 14px; font-size: clamp(48px, 12vw, 120px); font-weight: 500; line-height: 0.95; text-shadow: var(--glow); }
+.flow__lede { max-width: 440px; font-size: 18px; line-height: 1.55; color: var(--cream-dim); }
+
+/* Progress rail: counter plus six segments (each a button). */
+.flow__rail {
+  position: sticky;
+  top: 84px; /* clears the 76px fixed nav */
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 760px;
+  margin: 28px auto 0;
+  padding: 6px 8px 6px 18px;
+  border: 1px solid rgba(252, 249, 243, 0.14);
+  border-radius: 999px;
+  background: rgba(8, 7, 11, 0.84);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.flow__counter { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex: 0 1 auto; font-family: var(--pixel); font-size: 16px; letter-spacing: 0.08em; color: var(--cream-dim); white-space: nowrap; }
+.flow__counter b { font-weight: 400; color: var(--accent-b); }
+.flow__counter span { overflow: hidden; margin-left: 8px; text-overflow: ellipsis; color: var(--cream); letter-spacing: 0.04em; }
+.flow__rail ol { display: flex; flex: 1 0 auto; gap: 4px; margin: 0 0 0 auto; padding: 0; list-style: none; }
+.flow__rail li { --fill: 0; }
+.flow__rail button { display: grid; place-items: center; width: 30px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; }
+.flow__rail button i { display: block; width: 100%; height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--accent-b) calc(var(--fill) * 100%), rgba(252, 249, 243, 0.18) 0); transition: height 0.25s; }
+.flow__rail li.is-active button i { height: 5px; box-shadow: 0 0 12px rgba(255, 179, 107, 0.55); }
+.flow__rail button:hover i { height: 5px; }
+.flow__rail button:focus-visible { outline: 2px dashed var(--accent-b); outline-offset: 2px; border-radius: 6px; }
+
+/* Cards (vertical flow). */
+.flow__track { display: grid; gap: 28px; max-width: 760px; margin: 30px auto 0; }
+.flow-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  background: linear-gradient(165deg, hsl(var(--h) 35% 12%), #0b0a0f 72%);
+  box-shadow: inset 0 0 0 1px hsl(var(--h) 70% 70% / 0.16), 0 30px 70px rgba(0, 0, 0, 0.45);
+  transform-origin: 50% 50%;
+}
+.flow-card__visual {
+  position: relative;
+  height: clamp(150px, 30vw, 230px);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 90% at 78% 20%, hsl(var(--h) 90% 60% / 0.5), transparent 62%),
+    radial-gradient(ellipse 60% 70% at 8% 110%, hsl(calc(var(--h) + 40) 80% 55% / 0.32), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(252, 249, 243, 0.035) 0 1px, transparent 1px 7px),
+    hsl(var(--h) 30% 9%);
+}
+.flow-card__numeral {
+  position: absolute;
+  right: -0.02em;
+  bottom: -0.2em;
+  font-size: clamp(150px, 34vw, 280px);
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.5px hsl(var(--h) 90% 76% / 0.6);
+}
+.flow-card__prompt { position: absolute; left: 22px; top: 18px; font-family: var(--pixel); font-size: 15px; letter-spacing: 0.1em; color: hsl(var(--h) 90% 82% / 0.9); }
+.flow-card__body { position: relative; padding: 22px 24px 26px; }
+.flow-card__meta { font-family: var(--pixel); font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: hsl(var(--h) 90% 76%); }
+.flow-card h3 { margin: 6px 0 12px; font-size: clamp(28px, 6.4vw, 42px); font-weight: 500; line-height: 1.06; }
+.flow-card__happens { margin-bottom: 18px; font-size: 17px; line-height: 1.55; color: var(--cream-dim); }
+.flow-card dl { display: grid; gap: 14px; margin: 0; }
+.flow-card dt { font-family: var(--pixel); font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; color: hsl(var(--h) 90% 76%); }
+.flow-card dd { margin: 3px 0 0; font-size: 16px; line-height: 1.5; color: rgba(252, 249, 243, 0.86); }
+
+/* ---------- Desktop: the pinned editorial stage ---------- */
+
+.flow.is-cinematic {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  height: 100svh;
+  padding: 0;
+}
+.is-cinematic .flow__head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  gap: 8px 48px;
+  max-width: none;
+  margin: 0;
+  padding: 88px var(--gutter) 0;
+}
+.is-cinematic .flow__head .kicker { grid-column: 1 / -1; }
+.is-cinematic .flow__head h2 { margin: 0; font-size: clamp(52px, 6vw, 108px); }
+.is-cinematic .flow__lede { justify-self: end; padding-bottom: 10px; }
+/* One shared vanishing point at the centre of the stage, so cards either side turn towards it. */
+.is-cinematic .flow__track { order: 2; position: relative; align-self: center; height: calc(100% - 36px); max-height: 600px; min-height: 0; max-width: none; margin: 18px var(--gutter); perspective: 1600px; }
+.is-cinematic .flow-card {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: var(--flow-wide, 560px);
+  height: 100%;
+  margin-left: calc(var(--flow-wide, 560px) / -2);
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+}
+/* Cards away from the centre sit in shadow. */
+.is-cinematic .flow-card::after { content: ''; position: absolute; inset: 0; background: #06050a; opacity: calc((1 - var(--open, 0)) * 0.5); pointer-events: none; }
+.is-cinematic .flow-card__visual {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  transform: scale(calc(1.08 - 0.08 * var(--open, 0)));
+  transform-origin: 70% 30%;
+}
+/* The numeral lags the card's travel, a layer of depth inside it. */
+.is-cinematic .flow-card__numeral { right: 0.04em; top: -0.12em; bottom: auto; font-size: clamp(180px, 18vw, 300px); translate: calc(var(--shift, 0) * -56px) 0; }
+.is-cinematic .flow-card__prompt { left: 30px; top: 26px; }
+.is-cinematic .flow-card__body {
+  position: absolute;
+  inset: auto 0 0 0;
+  padding: 64px 34px 30px;
+  background: linear-gradient(transparent, rgba(6, 5, 9, 0.9) 36%);
+}
+.is-cinematic .flow-card h3 { font-size: clamp(30px, 2.8vw, 46px); }
+.is-cinematic .flow-card__happens { font-size: 17px; }
+.is-cinematic .flow-card dl { grid-template-columns: 1fr 1fr; gap: 22px; }
+.is-cinematic .flow__rail { order: 3; position: relative; top: auto; max-width: none; margin: 0 var(--gutter) 30px; border: 0; border-radius: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; padding: 0; }
+.is-cinematic .flow__counter { font-size: 18px; }
+.is-cinematic .flow__rail ol { flex: 0 1 560px; }
+.is-cinematic .flow__rail li { flex: 1; }
+.is-cinematic .flow__rail button { width: 100%; }
+
+/* Short desktop windows (laptops): tighter heading and card type so the full text fits. */
+@media (max-height: 780px) {
+  .is-cinematic .flow__head { padding-top: 84px; }
+  .is-cinematic .flow__head h2 { font-size: clamp(40px, 8vh, 72px); }
+  .is-cinematic .flow__lede { font-size: 16px; }
+  .is-cinematic .flow__track { margin-block: 12px; height: calc(100% - 24px); }
+  .is-cinematic .flow-card__body { padding: 44px 28px 20px; }
+  .is-cinematic .flow-card__meta { font-size: 13px; }
+  .is-cinematic .flow-card h3 { margin: 4px 0 8px; font-size: clamp(26px, 4.2vh, 34px); }
+  .is-cinematic .flow-card__happens { margin-bottom: 12px; font-size: 15px; line-height: 1.45; }
+  .is-cinematic .flow-card dl { gap: 18px; }
+  .is-cinematic .flow-card dt { font-size: 12px; }
+  .is-cinematic .flow-card dd { font-size: 14px; line-height: 1.4; }
+  .is-cinematic .flow__rail { margin-bottom: 16px; }
+}
+
+/* The stage wrapper only matters when it is pinned on phones; elsewhere its children lay out as
+   direct children of the section. */
+.flow__stage { display: contents; }
+
+/* ---------- Phones (portrait): the same pinned 3D track ----------
+   The heading scrolls normally; the stage (track over rail) pins below the fixed nav and
+   takes the full screen height. */
+.flow.is-cinematic.is-mobile { display: block; height: auto; padding: clamp(96px, 14vh, 140px) 0 0; }
+.is-mobile .flow__head { display: block; max-width: 760px; margin: 0 auto; padding: 0 var(--gutter); }
+.is-mobile .flow__head h2 { margin: 10px 0 14px; font-size: clamp(48px, 12vw, 120px); }
+.is-mobile .flow__lede { font-size: 17px; }
+.is-mobile .flow__stage {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  height: 100vh;
+  height: 100svh;
+  padding-top: 84px;
+  overflow: hidden;
+}
+.is-mobile .flow__track { margin: 8px var(--gutter); height: calc(100% - 16px); max-height: none; }
+.is-mobile .flow__rail { margin: 0 var(--gutter) 14px; }
+.is-mobile .flow-card__body { padding: 40px 18px 18px; }
+.is-mobile .flow-card__prompt { left: 18px; top: 18px; font-size: 13px; }
+.is-mobile .flow-card__numeral { font-size: clamp(130px, 40vw, 220px); }
+.is-mobile .flow-card__meta { font-size: 12px; }
+.is-mobile .flow-card h3 { margin: 4px 0 8px; font-size: 24px; }
+.is-mobile .flow-card__happens { margin-bottom: 12px; font-size: 14px; line-height: 1.45; }
+.is-mobile .flow-card dl { grid-template-columns: 1fr 1fr; gap: 14px; }
+.is-mobile .flow-card dt { font-size: 12px; }
+.is-mobile .flow-card dd { font-size: 13px; line-height: 1.4; }
+
+@media (max-width: 420px) {
+  .flow__counter span { display: none; }
+  .flow__rail button { width: 26px; }
+  .flow-card__body { padding: 20px 18px 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow__rail button i { transition: none; }
+}

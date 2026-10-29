@@ -4,7 +4,7 @@ export const navLinks = [
   ['About Us', '#about'],
   ['Services', '#services'],
   ['Process', '#process'],
-  ['Contact', '#reel'],
+  ['Contact', '#start'],
 ]
 
 // Concept studies, not client commissions — the screen copy says so too.
@@ -63,19 +63,6 @@ export const houseRules = [
   ['IV.', 'Ready for what changes', 'Build systems that can be understood, improved, and extended later.'],
 ]
 
-// Each wordmark gets its own period-appropriate type treatment.
-export const tools = [
-  { name: 'React', style: 'wm-react' },
-  { name: 'TypeScript', style: 'wm-ts' },
-  { name: 'three.js', style: 'wm-three' },
-  { name: 'Node.js', style: 'wm-node' },
-  { name: 'Python', style: 'wm-python' },
-  { name: 'PostgreSQL', style: 'wm-pg' },
-  { name: 'AWS', style: 'wm-aws' },
-  { name: 'GSAP', style: 'wm-gsap' },
-  { name: 'Applied AI', style: 'wm-ai' },
-]
-
 export const processSteps = [
   ['DISCOVER', 'Understand the business problem, audience, requirements, and the outcome that matters.'],
   ['STRATEGIZE', 'Define scope, priorities, architecture, and an implementation approach that fits.'],
@@ -97,11 +84,10 @@ export const chapters = [
   ['studio', '04', 'The DevCore Gazette'],
   ['services', '05', 'What we build'],
   ['lab', '06', 'The engineering lab'],
-  ['technology', '07', 'Technology ecosystem'],
   ['process', '08', 'How we work'],
   ['quality', '09', 'Quality & reliability'],
   ['assembler', '10', 'One coherent system'],
-  ['reel', '11', 'Start a project'],
+  ['start', '11', 'Start a project'],
 ]
 
 export const caseFiles = [
@@ -199,14 +185,6 @@ export const labLayers = [
     detail: 'Third-party services, AI capabilities, deployment pipelines and monitoring, selected to fit each product rather than by habit.',
     tech: ['AWS', 'Applied AI'],
   },
-]
-
-export const techGroups = [
-  { category: 'Frontend', title: 'Interfaces with intent.', role: 'Component-driven interfaces, type-safe code, and 3D and motion where they add meaning.', items: ['React', 'TypeScript', 'three.js', 'GSAP'] },
-  { category: 'Backend', title: 'Logic that connects.', role: 'Application services and APIs shaped around real product needs.', items: ['Node.js', 'Python'] },
-  { category: 'Data', title: 'Structure for clarity.', role: 'Relational data foundations for products that need to stay understandable.', items: ['PostgreSQL'] },
-  { category: 'Intelligence', title: 'Automation with purpose.', role: 'Applied AI integrated where it makes a workflow genuinely more useful.', items: ['Applied AI'] },
-  { category: 'Infrastructure', title: 'A dependable base.', role: 'Cloud foundations selected to support the needs of each product.', items: ['AWS'] },
 ]
 
 export const processStages = [

@@ -5,9 +5,9 @@ import { detectWebGL } from './scenes/webgl.js'
 const AmbientWorld = lazy(() => import('./scenes/AmbientWorld.jsx'))
 
 // Chapters drawn over the shared world, in the order of its z anchors.
-const ZONES = ['studio', 'services', 'technology', 'process']
+const ZONES = ['services', 'technology']
 
-// Fixed backdrop behind the five "environment" chapters. It mounts the WebGL world lazily,
+// Fixed backdrop behind the "environment" chapters. It mounts the WebGL world lazily,
 // renders only while one of those chapters is on screen, and is skipped entirely for reduced
 // motion or missing WebGL — the chapters then fall back to their CSS backgrounds.
 export default function AmbientBackdrop({ reducedMotion }) {

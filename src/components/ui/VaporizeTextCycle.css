@@ -1,0 +1,6 @@
+/* Vaporize text. The text fallback is in normal flow until the canvas takes over, so the
+   word is always visible: before fonts load, with reduced motion, or without canvas. */
+.vapor { position: relative; display: block; }
+.vapor__canvas { display: block; width: 100%; }
+.vapor.is-running .vapor__text { position: absolute; inset: 0 0 auto; visibility: hidden; }
+.vapor__text { display: block; }

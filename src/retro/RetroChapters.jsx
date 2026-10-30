@@ -8,10 +8,12 @@ import {
 import { DESKTOP_MOTION, MOBILE_LANDSCAPE, MOBILE_PORTRAIT, roomForPinnedScene, SCENE_SCRUB, SCENE_SNAP, scenePace } from './motionModes.js'
 import { LogoMark } from './RetroChrome.jsx'
 import SceneMount from './scenes/SceneMount.jsx'
+import { detectWebGL } from './scenes/webgl.js'
 import { scrollDepth } from './scrollDepth.js'
 
 const PreludeScene = lazy(() => import('./scenes/PreludeScene.jsx'))
 const AssemblerScene = lazy(() => import('./scenes/AssemblerScene.jsx'))
+const RibbonScene = lazy(() => import('./scenes/RibbonScene.jsx'))
 
 
 function useScrollProgress(sectionRef, progressRef) {
@@ -375,8 +377,29 @@ function CapabilityArt({ type }) {
   )
 }
 
+// The six capabilities riding past in 3D before the full list. Decorative: every word on the cards
+// is in the list below, so it is hidden from assistive tech and skipped without WebGL or motion.
+function CapabilityRibbon() {
+  const wrapRef = useRef(null)
+  const progressRef = useRef(0)
+  const [card, setCard] = useState(0)
+  useScrollProgress(wrapRef, progressRef)
+  return (
+    <div className="ribbon" ref={wrapRef} aria-hidden="true">
+      <div className="ribbon__stage">
+        <SceneMount className="ribbon__scene" scene={RibbonScene} progressRef={progressRef} onFocus={setCard} fallback={null} />
+        <div className="ribbon__rail">
+          <span><b>0{card + 1}</b> / 0{capabilities.length}</span>
+          <ol>{capabilities.map((cap, index) => <li key={cap.title} className={index <= card ? 'is-on' : ''} />)}</ol>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Capabilities({ reducedMotion }) {
   const sectionRef = useRef(null)
+  const [webgl] = useState(detectWebGL)
   useGSAP(() => {
     // The row in the middle of the screen is lit (a state, so it applies with reduced motion too).
     gsap.utils.toArray('.cap', sectionRef.current).forEach((row) => {
@@ -384,18 +407,19 @@ export function Capabilities({ reducedMotion }) {
     })
     if (reducedMotion) return
     gsap.utils.toArray('.cap', sectionRef.current).forEach((row, index) => {
-      // Rows swing up out of depth, alternating the side they hinge from.
-      gsap.timeline({ scrollTrigger: { trigger: row, start: 'top 82%', once: true } })
-        .fromTo(row, { rotateX: 14, rotateY: index % 2 ? -6 : 6, z: -120, autoAlpha: 0, transformPerspective: 1400, transformOrigin: index % 2 ? '100% 0%' : '0% 0%' }, { rotateX: 0, rotateY: 0, z: 0, autoAlpha: 1, duration: 0.9, ease: 'power3.out' })
-        .fromTo(row.querySelector('.cap__title'), { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 0.9, ease: 'power3.inOut' }, 0.15)
-        .fromTo(row.querySelectorAll('.cap-art__draw'), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 1.1, stagger: 0.08, ease: 'power2.out' }, 0.15)
-        .fromTo(row.querySelectorAll('.cap__value, .cap__list li'), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.05 }, 0.35)
+      // Rows swing up out of depth, alternating the side they hinge from. Tied to the scroll across
+      // most of the screen, so the arrival is slow and plays back in reverse on the way up.
+      gsap.timeline({ scrollTrigger: { trigger: row, start: 'top 98%', end: 'top 35%', scrub: SCENE_SCRUB } })
+        .fromTo(row, { rotateX: 14, rotateY: index % 2 ? -6 : 6, z: -120, autoAlpha: 0, transformPerspective: 1400, transformOrigin: index % 2 ? '100% 0%' : '0% 0%' }, { rotateX: 0, rotateY: 0, z: 0, autoAlpha: 1, duration: 0.9, ease: 'power1.out' })
+        .fromTo(row.querySelector('.cap__title'), { clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)', duration: 0.9, ease: 'none' }, 0.15)
+        .fromTo(row.querySelectorAll('.cap-art__draw'), { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.9, stagger: 0.04, ease: 'none' }, 0.15)
+        .fromTo(row.querySelectorAll('.cap__value, .cap__list li'), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.5, stagger: 0.04, ease: 'none' }, 0.35)
       // Each drawing keeps turning slowly while its row crosses the screen, alternating direction.
       gsap.fromTo(row.querySelector('.cap-art'), { y: 40, rotate: row.classList.contains('cap--flip') ? -8 : 8 }, {
         y: -40, rotate: row.classList.contains('cap--flip') ? 6 : -6, ease: 'none',
-        scrollTrigger: { trigger: row, start: 'top bottom', end: 'bottom top', scrub: 0.8 },
+        scrollTrigger: { trigger: row, start: 'top bottom', end: 'bottom top', scrub: SCENE_SCRUB },
       })
-      gsap.fromTo(row.querySelector('.cap__num'), { y: 30 }, { y: -30, ease: 'none', scrollTrigger: { trigger: row, start: 'top bottom', end: 'bottom top', scrub: 0.8 } })
+      gsap.fromTo(row.querySelector('.cap__num'), { y: 30 }, { y: -30, ease: 'none', scrollTrigger: { trigger: row, start: 'top bottom', end: 'bottom top', scrub: SCENE_SCRUB } })
     })
   }, { scope: sectionRef, dependencies: [reducedMotion], revertOnUpdate: true })
 
@@ -407,6 +431,7 @@ export function Capabilities({ reducedMotion }) {
         <h2 id="caps-title">What We <em>Build</em></h2>
         <p>Six kinds of work we take on, and what each one is actually for.</p>
       </header>
+      {webgl && !reducedMotion && <CapabilityRibbon />}
       <ol className="caps__list">
         {capabilities.map((cap, index) => (
           <li className={`cap ${index % 2 ? 'cap--flip' : ''}`} key={cap.title}>

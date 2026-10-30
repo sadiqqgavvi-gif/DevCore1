@@ -540,6 +540,17 @@ html.is-booting .chapter { opacity: 0; }
 .caps__head { max-width: 1280px; margin: 0 auto 50px; }
 .caps__head h2 { font-size: clamp(64px, 11vw, 196px); font-weight: 500; line-height: 0.9; text-shadow: var(--glow); }
 .caps__head > p:last-child { max-width: 520px; margin-top: 18px; font-size: 19px; color: var(--cream-dim); }
+/* The ribbon: a tall track with a screen-sized stage stuck inside it, edge to edge. */
+.ribbon { position: relative; height: 420vh; margin: 0 calc(var(--gutter) * -1); }
+.ribbon__stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+.ribbon__rail { position: absolute; left: var(--gutter); right: var(--gutter); bottom: clamp(76px, 11vh, 104px); display: flex; align-items: center; justify-content: center; gap: 16px; font-family: var(--pixel); font-size: 17px; letter-spacing: 0.08em; color: var(--cream-dim); pointer-events: none; }
+.ribbon__rail b { font-weight: 400; color: var(--accent-b); }
+.ribbon__rail ol { display: flex; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.ribbon__rail li { width: 26px; height: 3px; border-radius: 3px; background: rgba(252, 249, 243, 0.18); transition: background 0.5s; }
+.ribbon__rail li.is-on { background: var(--accent-b); }
+@media (max-width: 899px) {
+  .ribbon { height: 460vh; }
+}
 .caps__list { max-width: 1280px; margin: 0 auto; padding: 0; list-style: none; }
 .cap {
   display: grid;
@@ -547,7 +558,8 @@ html.is-booting .chapter { opacity: 0; }
   grid-template-areas: 'num title art' '. body art';
   align-items: start;
   gap: 14px 44px;
-  padding: 56px 0;
+  /* Room between rows: more scroll per capability, so the chapter reads slowly. */
+  padding: clamp(72px, 14vh, 140px) 0;
   border-top: 1px solid rgba(252, 249, 243, 0.14);
 }
 .cap--flip { grid-template-columns: 210px 1fr 80px; grid-template-areas: 'art title num' 'art body .'; }
@@ -558,7 +570,7 @@ html.is-booting .chapter { opacity: 0; }
 .cap__value { max-width: 600px; font-size: 19px; color: var(--cream-dim); }
 .cap__list { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
 .cap__list li { padding: 3px 11px 1px; border: 1px solid rgba(252, 249, 243, 0.25); font-family: var(--pixel); font-size: 16px; }
-.cap-art { grid-area: art; width: 100%; max-width: 210px; color: var(--accent-b); transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.3s; }
+.cap-art { grid-area: art; width: 100%; max-width: 210px; color: var(--accent-b); transition: color 0.3s; }
 .cap-art__draw { stroke-dasharray: 1; stroke-linecap: round; stroke-linejoin: round; }
 .cap:hover .cap-art, .cap:focus-within .cap-art { transform: rotate(-6deg) scale(1.08); color: #ffd2a1; }
 
@@ -725,7 +737,7 @@ html.is-booting .chapter { opacity: 0; }
 
 @media (max-width: 899px) {
   .case { grid-template-columns: 1fr; gap: 28px; }
-  .cap, .cap--flip { grid-template-columns: 1fr; grid-template-areas: 'num' 'title' 'art' 'body'; gap: 10px; padding: 40px 0; }
+  .cap, .cap--flip { grid-template-columns: 1fr; grid-template-areas: 'num' 'title' 'art' 'body'; gap: 10px; padding: clamp(56px, 10vh, 96px) 0; }
   .cap--flip .cap__num { text-align: left; }
   .cap-art { max-width: 130px; }
   .lab__grid { grid-template-columns: 1fr; }

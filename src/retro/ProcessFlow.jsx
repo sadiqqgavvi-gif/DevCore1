@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { gsap, ScrollTrigger, useGSAP } from '../lib/gsap.js'
 import { processStages } from './data.js'
-import { DESKTOP_MOTION, MOBILE_LANDSCAPE, MOBILE_PORTRAIT } from './motionModes.js'
+import { DESKTOP_MOTION, MOBILE_LANDSCAPE, MOBILE_PORTRAIT, SCENE_SCRUB, SCENE_SNAP, scenePace } from './motionModes.js'
 import { scrollDepth } from './scrollDepth.js'
 
 const LAST = processStages.length - 1
@@ -86,6 +86,10 @@ export function ProcessFlow() {
         const open = cards.map((_, index) => ease(clamp01(1 - Math.abs(index - position))))
         cards.forEach((card, index) => {
           const offset = index - position
+          // Cards too far away to see are hidden and skipped, so each frame styles only a few.
+          const distant = Math.abs(offset) >= 2.6
+          card.style.visibility = distant ? 'hidden' : ''
+          if (distant) return
           const turn = Math.max(-TURN_LIMIT, Math.min(TURN_LIMIT, offset))
           card.style.transform = `translate3d(${(offset * step).toFixed(1)}px, 0, ${(-Math.abs(turn) * SINK).toFixed(1)}px) rotateY(${(-turn * TURN).toFixed(2)}deg)`
           card.style.zIndex = String(10 - Math.round(Math.abs(offset) * 2))
@@ -96,7 +100,6 @@ export function ProcessFlow() {
         })
         backdrops.forEach((layer, index) => { layer.style.opacity = open[index].toFixed(3) })
         paintRail(position + 1)
-        section.style.setProperty('--flow-progress', p.toFixed(3))
         setStage(Math.round(position))
       }
       const state = { p: 0 }
@@ -107,12 +110,12 @@ export function ProcessFlow() {
         scrollTrigger: {
           trigger: mobile ? stage : section,
           start: 'top top',
-          end: () => `+=${Math.round(window.innerHeight * PIN_SCREENS)}`,
+          end: () => `+=${Math.round(window.innerHeight * PIN_SCREENS * scenePace())}`,
           pin: mobile ? stage : true,
-          scrub: 0.7,
+          scrub: SCENE_SCRUB,
           invalidateOnRefresh: true,
           onRefresh: () => { measure(); render(state.p) },
-          snap: { snapTo: [0, ...STOPS, 1], inertia: false, duration: { min: 0.25, max: 0.6 }, delay: 0.1, ease: 'power2.inOut' },
+          snap: { ...SCENE_SNAP, snapTo: [0, ...STOPS, 1] },
         },
       })
       triggerRef.current = tween.scrollTrigger
@@ -124,9 +127,9 @@ export function ProcessFlow() {
       return () => {
         section.classList.remove('is-cinematic', 'is-mobile')
         section.style.removeProperty('--flow-wide')
-        section.style.removeProperty('--flow-progress')
         cards.forEach((card) => {
           card.style.removeProperty('transform')
+          card.style.removeProperty('visibility')
           card.style.removeProperty('z-index')
           card.style.removeProperty('opacity')
           card.style.removeProperty('--open')

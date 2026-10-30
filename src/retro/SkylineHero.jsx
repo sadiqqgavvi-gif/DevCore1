@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowRight } from 'lucide-react'
 import { useMediaQuery } from '../hooks/useMediaQuery.js'
-import { gsap, useGSAP } from '../lib/gsap.js'
-import { DESKTOP_MOTION } from './motionModes.js'
+import { gsap, ScrollTrigger, useGSAP } from '../lib/gsap.js'
+import { DESKTOP_MOTION, MOBILE_PORTRAIT, SCENE_SCRUB, scenePace } from './motionModes.js'
 
 // The 21st.dev "sunset skyline" assets: an 8 s cinematic film and a transparent cut-out of its
 // final skyline, laid over the film so the buildings stand in front of the brand mark.
 const FILM_SRC = 'https://cdn.21st.dev/assets/mirror/23/234bc821170e75a6b8d2e42a952078f858eb054a51fab2a5baa928a10fdc245d.mp4'
 const SKYLINE_SRC = 'https://cdn.21st.dev/assets/mirror/97/97fe4402ea1d5d05c2b82befe6dbf73da1d6669b995e6d5ae9f2ebea68b1107a.png'
 
-// Desktop: pinned scroll distance (viewport heights) and the share of it that plays the film.
+// Scrub: pinned scroll distance (viewport heights) and the share of it that plays the film.
 const PIN_SCREENS = 2.6
 const FILM_END = 0.7
-// Phones and tablets: the film plays through once; the skyline and mark arrive near its end.
+// Play: the film runs through once; the skyline and mark arrive near its end.
 const REVEAL_AT = 0.68
 // Never seek past the last decodable frame, and skip seeks smaller than half a frame (24 fps).
 const END_GUARD = 0.05
@@ -24,16 +24,16 @@ function formatTime(seconds) {
 
 /**
  * The opening of the page. Three ways to play the same film:
- *  - scrub (desktop): the section pins and scroll drives the film, then the brand mark and the
- *    skyline. ScrollTrigger pins it, so native scrolling is never intercepted.
- *  - play (phones, tablets, short screens): no pin. The muted film plays through once while the
+ *  - scrub (desktop, portrait phones and tablets): the section pins and scroll drives the film,
+ *    then the brand mark and the skyline.
+ *  - play (landscape phones, short screens): no pin. The muted film plays through once while the
  *    hero is on screen and the skyline settles in at the end; the page scrolls normally.
  *  - still (reduced motion): the finished frame, nothing moves.
  * If the film fails, a dusk gradient holds the frame; the copy and the actions never depend on it.
  */
 export default function SkylineHero({ reducedMotion, introDelay }) {
-  const desktop = useMediaQuery(DESKTOP_MOTION)
-  const mode = reducedMotion ? 'still' : desktop ? 'scrub' : 'play'
+  const scrubbed = useMediaQuery(`${DESKTOP_MOTION}, ${MOBILE_PORTRAIT}`)
+  const mode = reducedMotion ? 'still' : scrubbed ? 'scrub' : 'play'
   const sectionRef = useRef(null)
   const filmRef = useRef(null)
   const timeRef = useRef(null)
@@ -88,6 +88,11 @@ export default function SkylineHero({ reducedMotion, introDelay }) {
       apply()
     }
     video.pause()
+    // iOS will not load or seek a video that has never played. Start and stop it once; if that is
+    // refused (low power mode), the dusk gradient holds and the layers still follow the scroll.
+    if (mode === 'scrub' && ScrollTrigger.isTouch) {
+      video.play()?.then(() => { video.pause(); apply() }).catch(() => {})
+    }
     scrub.seek = (fraction) => {
       scrub.fraction = fraction
       apply()
@@ -174,14 +179,16 @@ export default function SkylineHero({ reducedMotion, introDelay }) {
       .from('.reel__open .kicker, .reel__lede, .reel__actions, .reel__hud', { y: 16, autoAlpha: 0, duration: 0.7, stagger: 0.08 }, '-=0.6')
 
     if (mode !== 'scrub') return
+    // Blur and letter-spacing repaint or re-lay out text every frame: wide screens only.
+    const wide = window.matchMedia('(min-width: 900px)').matches
     const tl = gsap.timeline({
       defaults: { ease: 'none' },
       scrollTrigger: {
         trigger: section,
         start: 'top top',
-        end: () => `+=${Math.round(window.innerHeight * PIN_SCREENS)}`,
+        end: () => `+=${Math.round(window.innerHeight * PIN_SCREENS * scenePace())}`,
         pin: true,
-        scrub: 0.6,
+        scrub: SCENE_SCRUB,
         anticipatePin: 1,
         invalidateOnRefresh: true,
       },
@@ -203,8 +210,8 @@ export default function SkylineHero({ reducedMotion, introDelay }) {
       .to('.reel__open', { opacity: 0, yPercent: -30, duration: 0.16 }, 0.08)
       .fromTo('.reel__veil', { autoAlpha: 1 }, { autoAlpha: 0.35, duration: 0.5 }, 0)
       // The brand mark condenses out of the light near the end of the film.
-      .fromTo('.reel__mark', { autoAlpha: 0, yPercent: 30, scale: 1.2, filter: 'blur(18px)', letterSpacing: '0.42em' },
-        { autoAlpha: 1, yPercent: 0, scale: 1, filter: 'blur(0px)', letterSpacing: '0.03em', duration: 0.2, ease: 'power2.out' }, 0.46)
+      .fromTo('.reel__mark', { autoAlpha: 0, yPercent: 30, scale: 1.2, ...(wide && { filter: 'blur(18px)', letterSpacing: '0.42em' }) },
+        { autoAlpha: 1, yPercent: 0, scale: 1, ...(wide && { filter: 'blur(0px)', letterSpacing: '0.03em' }), duration: 0.2, ease: 'power2.out' }, 0.46)
       // Once sharp, drop the filter so the mark is not kept on its own compositing layer.
       .set('.reel__mark', { filter: 'none' }, 0.661)
       // The skyline settles in front of the mark, exactly over the film's last frame.

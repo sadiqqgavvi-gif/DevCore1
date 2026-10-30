@@ -23,8 +23,7 @@ export function scrollDepth(cards, apply, { exitFrom = 0.4, exitTo = 0.1 } = {})
     viewport = window.innerHeight
     boxes = cards.map((card) => ({ top: documentTop(card), height: card.offsetHeight }))
   }
-  const render = () => {
-    const scroll = window.scrollY
+  const render = (scroll) => {
     boxes.forEach(({ top, height }, index) => {
       const y = top - scroll
       const enter = ease(clamp01((viewport - y) / (viewport * 0.5)))
@@ -36,9 +35,9 @@ export function scrollDepth(cards, apply, { exitFrom = 0.4, exitTo = 0.1 } = {})
     trigger: cards[0].parentElement,
     start: 'top bottom',
     end: 'bottom top',
-    onUpdate: render,
-    onRefresh: () => { measure(); render() },
+    onUpdate: (self) => render(self.scroll()),
+    onRefresh: (self) => { measure(); render(self.scroll()) },
   })
   measure()
-  render()
+  render(window.scrollY)
 }

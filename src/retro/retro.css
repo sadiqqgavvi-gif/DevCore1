@@ -149,7 +149,7 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* ---------- About zoom ---------- */
 
-.about-zoom { position: relative; height: 240vh; background: #cfd1ce; }
+.about-zoom { position: relative; height: 300vh; background: #cfd1ce; }
 .about-zoom__stage {
   position: sticky;
   top: 0;
@@ -301,6 +301,10 @@ button, input, textarea { font: inherit; color: inherit; }
   opacity: 0.08;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
   animation: grain 0.9s steps(6) infinite;
+}
+/* Phones: a still grain. Animating it keeps a layer four screens in area alive on the GPU. */
+@media (max-width: 899px) {
+  .crt-overlay__grain { inset: 0; animation: none; }
 }
 .crt-overlay__lines { position: absolute; inset: 0; opacity: 0.28; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 3px); }
 .crt-overlay__vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.3) 100%); }

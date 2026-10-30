@@ -2,8 +2,9 @@
    Layer order, back to front: film, veil, brand mark, skyline cut-out, scrim, opening copy,
    exit shade, HUD. The film and the skyline share object-fit / object-position, so the cut-out
    always sits exactly over the film's final frame at every viewport size.
-   .is-scrub  desktop: pinned, the timeline drives everything (copy centred).
-   .is-play   phones / tablets: no pin, the film plays once, copy anchored low.
+   .is-scrub  desktop, portrait phones and tablets: pinned, the timeline drives everything
+              (copy centred).
+   .is-play   landscape phones, short screens: no pin, the film plays once, copy anchored low.
    .is-still  reduced motion: the finished frame. */
 
 .reel {
@@ -173,6 +174,8 @@
   .reel__lede { font-size: 16.5px; }
   .reel__mark { font-size: min(11.5vw, 7.5vh); }
   .reel__mark span { white-space: normal; }
+  .reel.is-scrub .reel__mark { top: 15%; }
+  .reel.is-scrub .reel__open { padding-bottom: 72px; }
   .reel__actions { flex-direction: column; align-items: stretch; width: min(100%, 320px); gap: 10px; }
   .reel__actions > * { justify-content: center; }
   .reel__hud { gap: 12px; font-size: 13px; }
@@ -180,7 +183,7 @@
 /* Short phones: the lede gives way so the headline and the actions keep their room. */
 @media (max-width: 760px) and (max-height: 700px) {
   .reel__lede { display: none; }
-  .reel.is-play .reel__mark, .reel.is-still .reel__mark { top: 12%; }
+  .reel.is-scrub .reel__mark, .reel.is-play .reel__mark, .reel.is-still .reel__mark { top: 12%; }
 }
 
 /* Short landscape phones: everything scales with the height. */

@@ -19,6 +19,8 @@ import './gazette.css'
 import './process-flow.css'
 
 const TRACKED_SECTIONS = chapters.map(([id]) => id)
+// Seconds a flick keeps coasting (GSAP's default is 2.8); the distance shrinks with it.
+const FLICK_COAST = 1.6
 
 function useReveal() {
   useEffect(() => {
@@ -104,6 +106,14 @@ export default function RetroApp() {
   useEffect(() => {
     document.fonts.ready.then(() => requestScrollRefresh())
   }, [])
+
+  // Touch screens: scroll on the JavaScript thread so pinned chapters stay in step with the finger
+  // instead of jumping, and shorten the coast after a flick. A drag still follows the finger 1:1.
+  useEffect(() => {
+    if (reducedMotion || !ScrollTrigger.isTouch) return undefined
+    ScrollTrigger.normalizeScroll({ type: 'touch', allowNestedScroll: true, momentum: FLICK_COAST })
+    return () => ScrollTrigger.normalizeScroll(false)
+  }, [reducedMotion])
 
   return (
     <div className="retro">

@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react'
 import VaporizeTextCycle from '../components/ui/VaporizeTextCycle.jsx'
 import { gsap, useGSAP } from '../lib/gsap.js'
 import { EMAIL } from './data.js'
+import { SCENE_SCRUB } from './motionModes.js'
 
 function CubicleFarm() {
   return (
@@ -26,7 +27,7 @@ export function AboutZoom({ reducedMotion }) {
     if (reducedMotion) return
     // One camera move: descend over the office, let the title settle, then a sheet of paper
     // rises into frame and becomes the Gazette below.
-    gsap.timeline({ scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: 'bottom bottom', scrub: 0.6 } })
+    gsap.timeline({ scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: 'bottom bottom', scrub: SCENE_SCRUB } })
       .fromTo('.farm', { scale: 0.85, yPercent: -6, rotate: 4 }, { scale: 2.1, yPercent: 16, rotate: -3, ease: 'power1.inOut', duration: 1 }, 0)
       .fromTo('.about-zoom__title', { scale: 0.8, autoAlpha: 0.4, yPercent: 10 }, { scale: 1.12, autoAlpha: 1, yPercent: -8, ease: 'none', duration: 0.75 }, 0)
       .fromTo('.about-zoom__caption span', { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, stagger: 0.12, duration: 0.18 }, 0.22)

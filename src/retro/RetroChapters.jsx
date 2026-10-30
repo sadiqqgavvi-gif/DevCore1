@@ -5,7 +5,7 @@ import { gsap, ScrollTrigger, useGSAP } from '../lib/gsap.js'
 import {
   capabilities, caseFiles, EMAIL, labLayers, projects, qualityPrinciples,
 } from './data.js'
-import { DESKTOP_MOTION, MOBILE_LANDSCAPE, MOBILE_PORTRAIT, roomForPinnedScene } from './motionModes.js'
+import { DESKTOP_MOTION, MOBILE_LANDSCAPE, MOBILE_PORTRAIT, roomForPinnedScene, SCENE_SCRUB, SCENE_SNAP, scenePace } from './motionModes.js'
 import { LogoMark } from './RetroChrome.jsx'
 import SceneMount from './scenes/SceneMount.jsx'
 import { scrollDepth } from './scrollDepth.js'
@@ -40,7 +40,7 @@ export function Prelude({ reducedMotion }) {
 
   useGSAP(() => {
     if (reducedMotion) return
-    const tl = gsap.timeline({ scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: 'bottom bottom', scrub: 0.6 } })
+    const tl = gsap.timeline({ scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: 'bottom bottom', scrub: SCENE_SCRUB } })
     gsap.utils.toArray('.prelude__beat').forEach((beat, index, all) => {
       // Beats hand over directly: one leaves as the next arrives, so the frame is never empty.
       const at = index * 0.33
@@ -176,6 +176,8 @@ export function CaseFiles() {
     const visuals = cases.map((card) => card.querySelector('.case-visual'))
     const intro = section.querySelector('.cases__intro')
     const outro = section.querySelector('.cases__outro')
+    // Written every frame, so only on the two elements that use it, not the whole section.
+    const progressEls = [section.querySelector('.cases__hud'), section.querySelector('.cases__progress')]
     const count = cases.length
     const mm = gsap.matchMedia()
 
@@ -228,7 +230,7 @@ export function CaseFiles() {
           visual.style.zIndex = String(Math.round(100 + mix(index, facing * 50, morph)))
         })
         intro.style.opacity = (1 - smooth(WHEEL_RING_END, WHEEL_RING_END + 0.08, p)).toFixed(3)
-        section.style.setProperty('--cases-progress', p.toFixed(3))
+        progressEls.forEach((element) => element.style.setProperty('--cases-progress', p.toFixed(3)))
         // The copy beside the drum follows the file in front.
         const active = p < (WHEEL_RING_END + WHEEL_DRUM_START) / 2 ? 0 : p > (WHEEL_DRUM_END + 1) / 2 ? count + 1 : Math.round(turn) + 1
         cases.forEach((card, index) => card.classList.toggle('is-active', active === index + 1))
@@ -243,12 +245,12 @@ export function CaseFiles() {
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: () => `+=${Math.round(window.innerHeight * WHEEL_SCREENS)}`,
+          end: () => `+=${Math.round(window.innerHeight * WHEEL_SCREENS * scenePace())}`,
           pin: true,
-          scrub: 0.6,
+          scrub: SCENE_SCRUB,
           invalidateOnRefresh: true,
           onRefresh: () => { measure(); render(state.p) },
-          snap: { snapTo: stops, inertia: false, duration: { min: 0.25, max: 0.6 }, delay: 0.1, ease: 'power2.out' },
+          snap: { ...SCENE_SNAP, snapTo: stops },
         },
       })
       triggerRef.current = tween.scrollTrigger
@@ -260,7 +262,7 @@ export function CaseFiles() {
         outro.classList.remove('is-active')
         visuals.forEach((visual) => visual.removeAttribute('style'))
         intro.style.removeProperty('opacity')
-        section.style.removeProperty('--cases-progress')
+        progressEls.forEach((element) => element.style.removeProperty('--cases-progress'))
         triggerRef.current = null
       }
     }
@@ -452,11 +454,11 @@ export function Lab() {
         scrollTrigger: {
           trigger: section,
           start: 'top top',
-          end: compact ? '+=130%' : '+=160%',
+          end: () => `+=${Math.round(window.innerHeight * (compact ? 1.3 : 1.6) * scenePace())}`,
           pin: true,
-          scrub: compact ? 0.4 : 0.6,
+          scrub: SCENE_SCRUB,
           invalidateOnRefresh: true,
-          snap: { snapTo: [0, ...LAB_STOPS, 1], directional: false, inertia: false, duration: { min: 0.2, max: 0.5 }, delay: 0.1, ease: 'power2.out' },
+          snap: { ...SCENE_SNAP, snapTo: [0, ...LAB_STOPS, 1], directional: false },
           onUpdate: (self) => {
             const next = Math.min(labLayers.length - 1, Math.floor(self.progress * labLayers.length))
             if (next !== activeRef.current) {
@@ -604,7 +606,7 @@ export function Assembler({ reducedMotion }) {
 
   useGSAP(() => {
     if (reducedMotion) return
-    const tl = gsap.timeline({ scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: 'bottom bottom', scrub: 0.5 } })
+    const tl = gsap.timeline({ scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: 'bottom bottom', scrub: SCENE_SCRUB } })
     gsap.utils.toArray('.assembler__beat').forEach((beat, index, all) => {
       const at = index * 0.3
       tl.fromTo(beat, { autoAlpha: 0, x: -30 }, { autoAlpha: 1, x: 0, duration: 0.08 }, at + 0.02)

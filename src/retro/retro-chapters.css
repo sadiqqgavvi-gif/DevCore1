@@ -208,7 +208,7 @@
   bottom: 0;
   width: 100%;
   height: 2px;
-  transform: scaleX(var(--progress, 0));
+  transform: scaleX(0);
   transform-origin: left;
   background: linear-gradient(90deg, var(--accent-a), var(--accent-b));
   opacity: 0.85;
@@ -238,7 +238,7 @@ html.is-booting .chapter { opacity: 0; }
 
 /* ---------- A. Prelude ---------- */
 
-.prelude { position: relative; height: 320vh; background: #0d0a10; }
+.prelude { position: relative; height: 400vh; background: #0d0a10; }
 .prelude__stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
 .prelude__stage::after {
   content: '';
@@ -655,7 +655,7 @@ html.is-booting .chapter { opacity: 0; }
 
 /* ---------- I. Assembler ---------- */
 
-.assembler { position: relative; height: 300vh; background: radial-gradient(ellipse at 65% 50%, #22172b 0%, #07050a 60%); }
+.assembler { position: relative; height: 380vh; background: radial-gradient(ellipse at 65% 50%, #22172b 0%, #07050a 60%); }
 .assembler__stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
 .assembler__scene { left: 32%; }
 .assembler__fallback { position: absolute; inset: 0; display: grid; place-items: center; }
@@ -730,13 +730,13 @@ html.is-booting .chapter { opacity: 0; }
   .cap-art { max-width: 130px; }
   .lab__grid { grid-template-columns: 1fr; }
   .lab__stack { width: min(300px, 62vw); }
-  .assembler { height: 220vh; }
+  .assembler { height: 360vh; }
   .assembler__scene { left: 0; top: 34%; }
   .assembler__copy { top: 96px; right: var(--gutter); width: auto; transform: none; }
   .assembler__beat p { display: none; }
   .assembler__beat { margin: 8px 0; }
-  .prelude { height: 230vh; }
-  .about-zoom { height: 170vh; }
+  .prelude { height: 380vh; }
+  .about-zoom { height: 280vh; }
 }
 
 @media (max-width: 760px) {

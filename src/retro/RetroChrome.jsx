@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowRight, Menu, Phone, X } from 'lucide-react'
+import { requestScrollRefresh, ScrollTrigger } from '../lib/gsap.js'
 import { BOOT_KEY } from './boot.js'
 import { chapters, EMAIL, navLinks } from './data.js'
 
@@ -47,6 +48,8 @@ export function BootScreen({ enabled }) {
   useEffect(() => {
     if (phase === 'done') {
       document.documentElement.classList.remove('is-booting')
+      // The scrollbar comes back with the page, so pins measured during the boot are too wide.
+      requestScrollRefresh()
       try { window.sessionStorage.setItem(BOOT_KEY, '1') } catch { /* storage unavailable */ }
       return undefined
     }
@@ -90,21 +93,11 @@ export function BootScreen({ enabled }) {
 function ScrollProgress() {
   const barRef = useRef(null)
   useEffect(() => {
-    let frame = 0
-    const update = () => {
-      frame = 0
-      const max = document.documentElement.scrollHeight - window.innerHeight
-      barRef.current?.style.setProperty('--progress', max > 0 ? String(window.scrollY / max) : '0')
-    }
-    const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(update) }
-    update()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-    }
+    // Reading scrollHeight or scrollY here would force a layout of the whole page on every frame,
+    // right after the chapters have written their styles. ScrollTrigger already caches both.
+    const paint = (self) => { barRef.current.style.transform = `scaleX(${self.progress})` }
+    const trigger = ScrollTrigger.create({ start: 0, end: 'max', onUpdate: paint, onRefresh: paint })
+    return () => trigger.kill()
   }, [])
   return <span className="nav__progress" ref={barRef} aria-hidden="true" />
 }
